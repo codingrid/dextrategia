@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Dashboard</title>
+</head>
+<body>
+  <h1>Bem-vindo ao seu Dashboard</h1>
+  <p>Você tem acesso a funcionalidades de usuário comum.</p>
+  <button onclick="logout()">Sair</button>
+
+  <script>
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = '/index.html';
+    }
+  </script>
+</body>
+</html>
