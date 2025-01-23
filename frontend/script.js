@@ -60,3 +60,22 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
         console.error('Erro na requisição de login:', error);
     }
 });
+
+    // Form toggle functionality
+    const toggleButtons = document.querySelectorAll('.toggle-form');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+
+    toggleButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            const formType = e.target.getAttribute('data-form');
+            
+            if (formType === 'login') {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+            } else {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+            }
+        });
+    });
