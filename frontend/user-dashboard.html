@@ -1,20 +1,287 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>User Dashboard</title>
+    <meta charset="UTF-8">
+    <title>Consultoria Empresarial</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto;
+        }
+
+        body {
+          background: url('images/background.png') no-repeat center center fixed;
+            background-size: cover;
+            color: #6B7280;
+            font-weight: 300;
+
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        nav {
+            background-color: #EBF5FF;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 9999px;
+            padding: 0.5rem 1rem;
+            margin: 1rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #7caff1;
+            text-decoration: none;
+            transition: color 0.3s;
+            white-space: nowrap;
+        }
+
+        .nav-links a:hover {
+            color: #60A5FA;
+            border-bottom: 2px solid #60A5FA;
+        }
+
+        .logo {
+            width: 100px;
+            height: 32px;
+            margin-right: 0.75rem;
+        }
+
+        header {
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .h1-animated {
+            font-size: 2.25rem;
+            font-weight: bold;
+            color: #60A5FA;
+            margin-bottom: 1rem;
+            animation: fadeIn 1s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #sobre-nos {
+            background: linear-gradient(135deg, #EBF5FF 0%, #FFFFFF 100%);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            transition: all 0.5s;
+        }
+
+        #sobre-nos:hover {
+            transform: scale(1.02);
+            box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .feature-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .icon-box {
+            background-color: #DBEAFE;
+            color: #60A5FA;
+            padding: 0.75rem;
+            border-radius: 9999px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+        }
+
+        #consulta {
+            margin-top: 4rem;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            padding: 2rem;
+        }
+
+        .map-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        @media (min-width: 1024px) {
+            .map-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .contact-info {
+            background-color: #EBF5FF;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        footer {
+            margin-top: 2rem;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(to right, #DBEAFE, #FFFFFF);
+            color: #1E40AF;
+            text-decoration: none;
+            border-radius: 9999px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        .cta-button:hover {
+            background: linear-gradient(to right, #60A5FA, #FFFFFF);
+        }
+
+        p {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+    </style>
 </head>
 <body>
-  <h1>Bem-vindo ao seu Dashboard</h1>
-  <p>Você tem acesso a funcionalidades de usuário comum.</p>
-  <button onclick="logout()">Sair</button>
+    <div class="container">
+        <nav>
+            <div class="nav-links">
+                <img src="images/dextrategia_logo.png"Logo" class="logo">
+                <a href="http://127.0.0.1:5500/frontend/user-dashboard.html">Sobre nós</a>
+                <a href="http://127.0.0.1:5500/frontend/agendar-consulta.html">Agende sua consulta</a>  
+            </div>
+            <div class="nav-links">
+                <span>Bem-vindo, Usuário!</span>
+                <a href="#" id="logout">Sair</a>
+            </div>
+        </nav>
+    </div>
 
-  <script>
-    function logout() {
-      localStorage.removeItem('token');
-      window.location.href = '/index.html';
-    }
-  </script>
+    <div class="container">
+        <header>
+            <h1 class="h1-animated">Soluções de Consultoria Empresarial</h1>
+            <p>Transformando negócios com expertise personalizada</p>
+        </header>
+
+        <div id="sobre-nos">
+            <h2>Sobre Nós</h2>
+            <p>Acreditamos que a confiança é o pilar central de qualquer relação. Por isso, trabalhamos para que os nossos clientes se sintam à vontade na nossa presença e, ao mesmo tempo, completamente seguros e anónimos na nossa ausência.</p>
+            
+            <div class="feature-box">
+                <div class="icon-box">▼</div>
+                <div>
+                    <h3>A nossa equipa</h3>
+                    <p>A nossa equipa é composta por profissionais competentes, metódicos e organizados, que primam pela pontualidade, educação e ética no trabalho. A excelência é a nossa meta diária, e a inovação é o motor que impulsiona os nossos produtos e serviços.</p>
+                </div>
+            </div>
+
+            <div class="feature-box">
+                <div class="icon-box">+</div>
+                <div>
+                    <h3>O nosso compromisso</h3>
+                    <p>Comprometemo-nos com a formação contínua e a atualização constante das nossas competências, porque acreditamos que apenas assim podemos ser "os melhores dos melhores" no que fazemos.</p>
+                </div>
+            </div>
+
+            <div class="feature-box">
+                <div class="icon-box">↔</div>
+                <div>
+                    <h3>O nosso propósito</h3>
+                    <p>O nosso propósito é alinhar organizações para a criação de Valor Acrescentado através da implementação e assessoria em Gestão Estratégica e Gestão Emocional.</p>
+                </div>
+            </div>
+
+            <div class="feature-box">
+                <div class="icon-box">△</div>
+                <div>
+                    <h3>A nossa visão</h3>
+                    <p>Queremos ser reconhecidos como o "Key Player" em soluções de gestão estratégica, consolidando a nossa liderança em Portugal e nos PALOP (Países Africanos de Língua Oficial Portuguesa) e iniciando a nossa expansão para Espanha nos próximos 3 anos.</p>
+                </div>
+            </div>
+        </div>
+
+        <section id="consulta">
+            <h2 class="h1-animated">Nossa Localização</h2>
+            <div class="map-container">
+                <div style="height: 400px;">
+                    <iframe 
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2985.9569246436477!2d-8.4041546!3d41.5485299!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd24fee94a94c50b%3A0xab6e42b351f267a7!2sDextra%20Consulting-consultoria%20De%20Gest%C3%A3o%20Lda!5e0!3m2!1spt-BR!2ses!4v1733947522850!5m2!1spt-BR!2ses"
+                        width="100%" 
+                        height="100%" 
+                        style="border:0;" 
+                        allowfullscreen="" 
+                        loading="lazy">
+                    </iframe>
+                </div>
+                <div class="contact-info">
+                    <p><strong>DEXTRA Consulting – Consultoria de Gestão, Lda</strong><br>
+                    Portugal: Praça Padre Ricardo Rocha, N.º11 - 1º Dir., 4715-293 Braga</p>
+                    <p><strong>Contatos:</strong><br>
+                    Tlf: +351 253 635 014<br>
+                    Tlm.: +351 967 582 242<br>
+                    Email: geral@dextra.pt</p>
+                    <p><strong>Espanha:</strong><br>
+                    Rúa da Industria Nº 91, Polígono del CEAO, 27003 Lugo<br>
+                    Tlm.: +34 982 209 078<br>
+                    Email: geral@dextra.pt</p>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <a href="#consulta" class="cta-button">Agende sua Consultoria</a>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('logout').addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/logout';
+            
+            // Add CSRF token if needed
+            const csrfToken = document.querySelector('meta[name="csrf-token"]');
+            if (csrfToken) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = '_token';
+                input.value = csrfToken.content;
+                form.appendChild(input);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+        });
+
+        // Add smooth scrolling to all links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
 </body>
 </html>

@@ -5,6 +5,13 @@ const path = require('path');
 const cors = require('cors'); // Adiciona a importação do módulo 'cors'
 const app = express();
 const port = 5000;
+const config = require('./config');
+const { MailerSend } = require('mailersend');
+const fs = require('fs');
+
+const mailerSend = new MailerSend({
+  apiKey: config.mailersendApiToken
+});
 
 app.use(cors()); // Adiciona o middleware 'cors'
 app.use(express.json());
@@ -103,7 +110,27 @@ app.post('/auth/login', (req, res) => {
         });
     });
 });
+app.post('/confirmar-pagamento', (req, res) => {
+    const { emailCliente, nomeCliente } = req.body;
+  
+    mailerSend.email.send({
+      from: {
+        email: 'seu.nome@trial-o65qngkn70wgwr12.mlsender.net',
+        name: 'Dextrategia'
+      },
+      to: [{
+        email: emailCliente,
+        name: nomeCliente
+      }],
+      subject: 'Confirmação de Pagamento - Dextrategia',
+      text: 'Seu pagamento foi confirmado',
+      html: '<h1>Seu pagamento foi confirmado</h1>'
+    })
+    .then(() => res.json({ success: true }))
+    .catch(error => res.status(500).json({ error: 'Erro ao enviar email' }));
+  });
 
 app.listen(port, () => {
     console.log(`Servidor rodando em http://localhost:${port}`);
 });
+

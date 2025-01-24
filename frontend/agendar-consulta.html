@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Agendar Consultoria</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+   <style>  
+    * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto;
+}
+
+body {
+    background: url('../images/background.png') no-repeat center center fixed;
+    background-size: cover;
+    color: #1F2937;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+nav {
+    background-color: rgba(239, 246, 255, 0.9);
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+    border-radius: 50px;
+    padding: 0.75rem 1.5rem;
+    margin: 0.5rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 95%;
+    max-width: 1200px;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+nav:hover {
+    box-shadow: 0 15px 20px rgba(0, 0, 0, 0.15);
+    transform: translateX(-50%) translateY(-2px);
+}
+
+.nav-links {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.nav-links a {
+    color: #3B82F6;
+    text-decoration: none;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.nav-links a::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: -4px;
+    left: 50%;
+    background-color: #3B82F6;
+    transition: all 0.3s ease;
+}
+
+.nav-links a:hover {
+    color: #1D4ED8;
+}
+
+.nav-links a:hover::after {
+    width: 100%;
+    left: 0;
+}
+
+.logo {
+    width: 120px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.consultores-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2.5rem;
+    margin-top: 100px;
+    padding: 1rem;
+}
+
+.consultor-card {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    transition: all 0.4s ease;
+    transform-origin: center;
+    position: relative;
+    perspective: 1000px;
+}
+
+.consultor-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background: linear-gradient(to right, #3B82F6, #2563EB);
+}
+
+.consultor-card:hover {
+    transform: scale(1.05) rotateX(5deg);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.consultor-img {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+    filter: grayscale(20%);
+    transition: all 0.4s ease;
+}
+
+.consultor-card:hover .consultor-img {
+    filter: grayscale(0);
+    transform: scale(1.1);
+}
+
+.consultor-info {
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.consultor-nome {
+    color: #1D4ED8;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    transition: color 0.3s ease;
+}
+
+.consultor-card:hover .consultor-nome {
+    color: #3B82F6;
+}
+
+.consultor-especialidade {
+    color: #4B5563;
+    margin-bottom: 1rem;
+    font-weight: 500;
+}
+
+.consultor-valor {
+    font-weight: 700;
+    color: #059669;
+    margin-bottom: 0.75rem;
+    font-size: 1.2rem;
+}
+
+.consultor-horas {
+    color: #6B7280;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.linkedin-btn {
+    display: inline-block;
+    padding: 0.6rem 1.2rem;
+    background: linear-gradient(to right, #0077B5, #005885);
+    color: white;
+    text-decoration: none;
+    border-radius: 50px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    transform: translateY(0);
+}
+
+.linkedin-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1);
+}
+
+.form-container {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2.5rem;
+    border-radius: 15px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    max-width: 900px;
+    margin: 4rem auto;
+    backdrop-filter: blur(15px);
+    border-top: 5px solid #3B82F6;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #1D4ED8;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+input[type="text"],
+input[type="email"],
+select,
+textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+select:focus,
+textarea:focus {
+    border-color: #3B82F6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    outline: none;
+}
+
+button[type="submit"] {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(to right, #3B82F6, #2563EB);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    transform: perspective(500px) rotateX(0deg);
+}
+
+button[type="submit"]:hover {
+    background: linear-gradient(to right, #2563EB, #1E40AF);
+    transform: perspective(500px) rotateX(-5deg);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.hidden {
+    display: none;
+}
+
+/* Custom Flatpickr Calendar Styling */
+.custom-calendar {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    border: none;
+    overflow: hidden;
+}
+
+.custom-calendar .flatpickr-months {
+    background: linear-gradient(to right, #3B82F6, #2563EB);
+    color: white;
+}
+
+.custom-calendar .flatpickr-current-month {
+    color: white;
+}
+
+.custom-calendar .flatpickr-weekdays {
+    background: #F3F4F6;
+}
+
+.custom-calendar .flatpickr-day {
+    transition: all 0.3s ease;
+    border-radius: 50%;
+}
+
+.custom-calendar .flatpickr-day:hover {
+    background: #3B82F6;
+    color: white;
+}
+
+.custom-calendar .flatpickr-day.selected {
+    background: #3B82F6;
+    color: white;
+}
+
+/* Payment Button Styling */
+button[type="submit"] {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s ease;
+}
+
+button[type="submit"]::before {
+    content: '→';
+    position: absolute;
+    top: 50%;
+    right: -30px;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+button[type="submit"]:hover::before {
+    right: 15px;
+    opacity: 1;
+}
+
+button[type="submit"]:hover {
+    padding-right: 40px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.consultor-card {
+    animation: fadeIn 0.6s ease forwards;
+    opacity: 0;
+}
+
+.consultor-card:nth-child(1) { animation-delay: 0.1s; }
+.consultor-card:nth-child(2) { animation-delay: 0.2s; }
+.consultor-card:nth-child(3) { animation-delay: 0.3s; }
+.consultor-card:nth-child(4) { animation-delay: 0.4s; }
+.consultor-card:nth-child(5) { animation-delay: 0.5s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <div class="nav-links">
+                <img src="images/dextrategia_logo.png" alt="Logo" class="logo">
+                <a href="#sobre-nos">Sobre nós</a>
+                <a href="#consulta">Agende sua consulta</a>
+                <a href="#reunioes">Minhas reuniões</a>
+                <a href="#config">Configurações</a>
+            </div>
+            <div class="nav-links">
+                <span>Bem-vindo, Usuário!</span>
+                <a href="#" id="logout">Sair</a>
+            </div>
+        </nav>
+
+        <div class="consultores-grid">
+            <div class="consultor-card">
+                <img src="images/consultores/carla.jpg" alt="Carla Medeiros" class="consultor-img">
+                <div class="consultor-info">
+                    <h3 class="consultor-nome">Carla Medeiros</h3>
+                    <p class="consultor-especialidade">Marketing Digital</p>
+                    <p class="consultor-valor">€45/hora</p>
+                    <p class="consultor-horas">Pacotes disponíveis: 5, 10, 20 horas</p>
+                    <a href="https://linkedin.com/in/carlamedeiros" target="_blank" class="linkedin-btn">
+                        Ver perfil no LinkedIn
+                    </a>
+                </div>
+            </div>
+
+            <div class="consultor-card">
+                <img src="images/consultores/ricardo.jpg" alt="Ricardo Almeida" class="consultor-img">
+                <div class="consultor-info">
+                    <h3 class="consultor-nome">Ricardo Almeida</h3>
+                    <p class="consultor-especialidade">Gestão Financeira</p>
+                    <p class="consultor-valor">€60/hora</p>
+                    <p class="consultor-horas">Pacotes disponíveis: 5, 10, 15 horas</p>
+                    <a href="https://linkedin.com/in/ricardoalmeida" target="_blank" class="linkedin-btn">
+                        Ver perfil no LinkedIn
+                    </a>
+                </div>
+            </div>
+
+            <div class="consultor-card">
+                <img src="images/consultores/fernanda.jpg" alt="Fernanda Costa" class="consultor-img">
+                <div class="consultor-info">
+                    <h3 class="consultor-nome">Fernanda Costa</h3>
+                    <p class="consultor-especialidade">RH e Processos</p>
+                    <p class="consultor-valor">€55/hora</p>
+                    <p class="consultor-horas">Pacotes disponíveis: 8, 16, 24 horas</p>
+                    <a href="https://linkedin.com/in/fernandacosta" target="_blank" class="linkedin-btn">
+                        Ver perfil no LinkedIn
+                    </a>
+                </div>
+            </div>
+
+            <div class="consultor-card">
+                <img src="images/consultores/marcos.jpg" alt="Marcos Tavares" class="consultor-img">
+                <div class="consultor-info">
+                    <h3 class="consultor-nome">Marcos Tavares</h3>
+                    <p class="consultor-especialidade">Estratégia Empresarial</p>
+                    <p class="consultor-valor">€75/hora</p>
+                    <p class="consultor-horas">Pacotes disponíveis: 10, 20, 30 horas</p>
+                    <a href="https://linkedin.com/in/marcostavares" target="_blank" class="linkedin-btn">
+                        Ver perfil no LinkedIn
+                    </a>
+                </div>
+            </div>
+
+            <div class="consultor-card">
+                <img src="images/consultores/ana.jpg" alt="Ana Beatriz Mendes" class="consultor-img">
+                <div class="consultor-info">
+                    <h3 class="consultor-nome">Ana Beatriz Mendes</h3>
+                    <p class="consultor-especialidade">Inovação</p>
+                    <p class="consultor-valor">€65/hora</p>
+                    <p class="consultor-horas">Pacotes disponíveis: 6, 12, 18 horas</p>
+                    <a href="https://linkedin.com/in/anabeatrizmendes" target="_blank" class="linkedin-btn">
+                        Ver perfil no LinkedIn
+                    </a>
+                </div>
+            </div>
+
+            <div class="consultor-card">
+                <img src="images/consultores/paulo.jpg" alt="Paulo Henrique Silva" class="consultor-img">
+                <div class="consultor-info">
+                    <h3 class="consultor-nome">Paulo Henrique Silva</h3>
+                    <p class="consultor-especialidade">Marketing Digital</p>
+                    <p class="consultor-valor">€50/hora</p>
+                    <p class="consultor-horas">Pacotes disponíveis: 5, 10, 15 horas</p>
+                    <a href="https://linkedin.com/in/paulohsilva" target="_blank" class="linkedin-btn">
+                        Ver perfil no LinkedIn
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="form-container">
+            <h1>Agende sua Consultoria</h1>
+            
+            <form id="agendamentoForm">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="cliente">Nome Completo</label>
+                        <input type="text" id="cliente" name="cliente" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="tipo_servico">Tipo de Serviço</label>
+                    <select id="tipo_servico" name="tipo_servico" required>
+                        <option value="">Selecione o tipo de serviço</option>
+                        <option value="individual">Consultoria Individual</option>
+                        <option value="Pack Básico de Consultoria">Pack Básico - €135</option>
+                        <option value="Pack de Gestão Estratégica">Pack Estratégico - €360</option>
+                        <option value="Pack Avançado de Gestão de Pessoas">Pack RH - €360</option>
+                        <option value="Pack de Finanças Empresariais">Pack Finanças - €660</option>
+                        <option value="Pack Premium">Pack Premium - €2920</option>
+                        <option value="Pack de Marketing e Vendas">Pack Marketing - €216</option>
+                    </select>
+                </div>
+
+                <div id="consultor-section" class="form-group hidden">
+                    <label for="consultor">Consultor</label>
+                    <select id="consultor" name="consultor">
+                        <option value="">Selecione um consultor</option>
+                    </select>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="data">Data e Hora</label>
+                        <input type="text" id="data" name="data" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="duracao">Duração (horas)</label>
+                        <select id="duracao" name="duracao" required>
+                            <option value="">Selecione a duração</option>
+                            <option value="1">1 hora</option>
+                            <option value="2">2 horas</option>
+                            <option value="3">3 horas</option>
+                            <option value="4">4 horas</option>
+                            <option value="5">5 horas</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Tipo de Reunião</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="tipo_reuniao" value="presencial" required>
+                                <span>Presencial</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="tipo_reuniao" value="online" required>
+                                <span>Online</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="metodo_pagamento">Método de Pagamento</label>
+                        <select id="metodo_pagamento" name="metodo_pagamento" required>
+                            <option value="">Selecione o método</option>
+                            <option value="mbway">MBWay</option>
+                            <option value="cartao">Cartão de Crédito/Débito</option>
+                            <option value="paypal">PayPal</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="assunto">Descrição da Consultoria</label>
+                    <textarea id="assunto" name="assunto" rows="3" required></textarea>
+                </div>
+
+                <div id="valor-total">Valor Total: €0,00</div>
+
+                <button type="submit">Continuar para Pagamento</button>
+            </form>
+        </div>
+    </div>
+
+   <script>
+document.addEventListener('DOMContentLoaded', () => {
+    const CONSULTORES = [
+        { id: 1, nome: "Carla Medeiros", especialidade: "Marketing Digital", valor: 45 },
+        { id: 2, nome: "Ricardo Almeida", especialidade: "Gestão Financeira", valor: 60 },
+        { id: 3, nome: "Fernanda Costa", especialidade: "RH e Processos", valor: 55 },
+        { id: 4, nome: "Marcos Tavares", especialidade: "Estratégia Empresarial", valor: 75 },
+        { id: 5, nome: "Ana Beatriz Mendes", especialidade: "Inovação", valor: 65 },
+        { id: 6, nome: "Paulo Henrique Silva", especialidade: "Marketing Digital", valor: 50 }
+    ];
+
+    const PACOTES = {
+        'Pack Básico de Consultoria': { valor: 135, horas: 5 },
+        'Pack de Gestão Estratégica': { valor: 360, horas: 10 },
+        'Pack Avançado de Gestão de Pessoas': { valor: 360, horas: 8 },
+        'Pack de Finanças Empresariais': { valor: 660, horas: 12 },
+        'Pack Premium': { valor: 2920, horas: 40 },
+        'Pack de Marketing e Vendas': { valor: 216, horas: 6 }
+    };
+
+    // Flatpickr initialization
+    if (window.flatpickr) {
+        flatpickr("#data", {
+            enableTime: true,
+            dateFormat: "Y-m-d H:i",
+            time_24hr: true,
+            minDate: "today",
+            minuteIncrement: 30,
+            locale: {
+                firstDayOfWeek: 1,
+                weekdays: {
+                    shorthand: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+                    longhand: ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
+                },
+                months: {
+                    shorthand: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+                    longhand: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+                }
+            },
+            onReady: function(selectedDates, dateStr, instance) {
+                const calendar = instance.calendarContainer;
+                calendar.classList.add('custom-calendar');
+            }
+        });
+    }
+
+    // Form elements
+    const form = document.getElementById('agendamentoForm');
+    const tipoServicoSelect = document.getElementById('tipo_servico');
+    const consultorSection = document.getElementById('consultor-section');
+    const consultorSelect = document.getElementById('consultor');
+    const duracaoSelect = document.getElementById('duracao');
+    const valorTotalDiv = document.getElementById('valor-total');
+
+    // Populate consultants dropdown
+    function popularConsultores() {
+        consultorSelect.innerHTML = '<option value="">Selecione um consultor</option>';
+        CONSULTORES.forEach(consultor => {
+            const option = document.createElement('option');
+            option.value = consultor.id;
+            option.textContent = `${consultor.nome} - ${consultor.especialidade} (€${consultor.valor}/hora)`;
+            consultorSelect.appendChild(option);
+        });
+    }
+
+    // Toggle consultant section based on service type
+    function toggleConsultorSection() {
+        if (tipoServicoSelect.value === 'individual') {
+            consultorSection.classList.remove('hidden');
+            duracaoSelect.removeAttribute('disabled');
+        } else {
+            consultorSection.classList.add('hidden');
+            consultorSelect.value = '';
+            if (PACOTES[tipoServicoSelect.value]) {
+                duracaoSelect.value = PACOTES[tipoServicoSelect.value].horas;
+                duracaoSelect.setAttribute('disabled', 'disabled');
+            } else {
+                duracaoSelect.value = '';
+                duracaoSelect.removeAttribute('disabled');
+            }
+        }
+        calcularValorTotal();
+    }
+
+    // Calculate total value
+    function calcularValorTotal() {
+        let valorTotal = 0;
+        let descricaoServico = '';
+
+        const tipoServico = tipoServicoSelect.value;
+        const duracao = parseInt(duracaoSelect.value) || 0;
+
+        if (tipoServico === 'individual') {
+            const consultorId = parseInt(consultorSelect.value);
+            const consultor = CONSULTORES.find(c => c.id === consultorId);
+            
+            if (consultor && duracao > 0) {
+                valorTotal = consultor.valor * duracao;
+                descricaoServico = `Consultoria Individual com ${consultor.nome} - ${duracao} horas`;
+            }
+        } else if (PACOTES[tipoServico]) {
+            valorTotal = PACOTES[tipoServico].valor;
+            descricaoServico = `${tipoServico} (${PACOTES[tipoServico].horas} horas)`;
+        }
+
+        valorTotalDiv.textContent = `Valor Total: €${valorTotal.toFixed(2).replace('.', ',')}`;
+        return { valorTotal, descricaoServico };
+    }
+
+    // Event Listeners
+    tipoServicoSelect.addEventListener('change', toggleConsultorSection);
+    consultorSelect.addEventListener('change', calcularValorTotal);
+    duracaoSelect.addEventListener('change', calcularValorTotal);
+
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const { valorTotal, descricaoServico } = calcularValorTotal();
+
+        if (!formData.get('cliente') || !formData.get('email') || !formData.get('tipo_servico') || !formData.get('data')) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
+            return;
+        }
+
+        // Store booking details in localStorage
+        const bookingDetails = {
+            nomeCliente: formData.get('cliente'),
+            emailCliente: formData.get('email'),
+            servico: descricaoServico,
+            tipoServico: formData.get('tipo_servico'),
+            dataHora: formData.get('data'),
+            valorTotal: valorTotal
+        };
+        localStorage.setItem('bookingDetails', JSON.stringify(bookingDetails));
+
+        // Redirect to payments page
+        window.location.href = 'pagamentos.html';
+    });
+
+    // Logout functionality
+    const logoutBtn = document.getElementById('logout');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/logout';
+            
+            const csrfToken = document.querySelector('meta[name="csrf-token"]');
+            if (csrfToken) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = '_token';
+                input.value = csrfToken.content;
+                form.appendChild(input);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+        });
+    }
+
+    // Initialize form
+    popularConsultores();
+    toggleConsultorSection();
+});
+    </script>
+</body>
+</html>

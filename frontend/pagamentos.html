@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Pagamento - Consultoria Empresarial</title>
+ 
+   <link rel="stylesheet" href="pagamentos.css">
+</head>
+<body>
+   <nav>
+       <img src="logo.png" alt="Logo" class="logo">
+       <div class="nav-links">
+           <a href="index.html">Início</a>
+           <a href="consultores.html">Consultores</a>
+           <a href="agendamento.html">Agendar</a>
+           <a href="#" id="logout">Sair</a>
+       </div>
+   </nav>
+
+   <div class="payment-container">
+       <h2 class="payment-title">Escolher Método de Pagamento</h2>
+       
+       <div class="payment-methods">
+           <div class="payment-method" data-method="mbway">
+               <img src="mbway-icon.svg" alt="MBWay" class="payment-method-icon">
+               <div class="payment-method-details">
+                   <div class="payment-method-name">MBWay</div>
+                   <div class="payment-method-description">Pagamento instantâneo via telemóvel</div>
+               </div>
+               <div class="payment-method-select"></div>
+           </div>
+
+           <div class="payment-method" data-method="cartao">
+               <img src="credit-card-icon.svg" alt="Cartão" class="payment-method-icon">
+               <div class="payment-method-details">
+                   <div class="payment-method-name">Cartão</div>
+                   <div class="payment-method-description">Crédito ou débito</div>
+               </div>
+               <div class="payment-method-select"></div>
+           </div>
+
+           <div class="payment-method" data-method="paypal">
+               <img src="paypal-icon.svg" alt="PayPal" class="payment-method-icon">
+               <div class="payment-method-details">
+                   <div class="payment-method-name">PayPal</div>
+                   <div class="payment-method-description">Pagamento online seguro</div>
+               </div>
+               <div class="payment-method-select"></div>
+           </div>
+       </div>
+
+       <form id="payment-form" >
+           <div id="mbway-form" class="payment-form">
+               <div class="form-group">
+                   <label for="mbway-phone">Número de Telemóvel</label>
+                   <input type="text" id="mbway-phone" name="mbway-phone" placeholder="912345678" required>
+               </div>
+           </div>
+
+           <div id="cartao-form" class="payment-form">
+               <div class="form-group">
+                   <label for="">Número do Cartão</label>
+                   <input type="text" id="card-number" name="card-number" placeholder="1234 5678 9012 3456" required>
+               </div>
+               <div class="form-group">
+                   <label for="card-name">Nome no Cartão</label>
+                   <input type="text" id="card-name" name="card-name" placeholder="João Silva" required>
+               </div>
+               <div class="grid-2">
+                   <div class="form-group">
+                       <label for="card-expiry">Validade</label>
+                       <input type="text" id="card-expiry" name="card-expiry" placeholder="MM/AA" required>
+                   </div>
+                   <div class="form-group">
+                       <label for="card-cvv">CVV</label>
+                       <input type="text" id="card-cvv" name="card-cvv" placeholder="123" required>
+                   </div>
+               </div>
+           </div>
+
+           <div id="paypal-form" class="payment-form" >
+               <div class="form-group">
+                   <label for="paypal-email">E-mail PayPal</label>
+                   <input type="email" id="paypal-email" name="paypal-email" placeholder="seu-email@exemplo.com" required>
+               </div>
+           </div>
+
+           <div class="payment-summary">
+               <div class="summary-item">
+                   <span>Serviço:</span>
+                   <span id="service-name">Consultoria Empresarial</span>
+               </div>
+               <div class="summary-item">
+                   <span>Valor Total:</span>
+                   <span id="total-value">€</span>
+               </div>
+           </div>
+
+           <button type="submit" class="btn-payment">Confirmar Pagamento</button>
+       </form>
+   </div>
+
+   <script src="pagamentos.js"></script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmação de Agendamento</title>
+  <style>
+    /* Estilos básicos do email */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .email-wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #3B82F6;
+      margin-bottom: 20px;
+    }
+    p {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+    <h1>Confirmação de Agendamento</h1>
+    <p>Olá {nomeCliente},</p>
+    <p>Seu agendamento foi confirmado:</p>
+    <ul>
+      <li>Serviço: {servico}</li>
+      <li>Data e Hora: {dataHora}</li>
+      <li>Valor Total: {valorTotal}</li>
+    </ul>
+    <p>Agradecemos sua preferência.</p>
+    <p>Equipe de Consultoria</p>
+  </div>
+</body>
+</html>
