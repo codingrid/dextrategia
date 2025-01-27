@@ -1,0 +1,264 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto;
+}
+
+body {
+    background: url('images/background.png') no-repeat center center fixed;
+      background-size: cover;
+      color: #6B7280;
+      font-weight: 300;
+
+  }
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    margin-top: 1.3rem;
+    padding: 0 1rem;
+}
+
+nav {
+    background-color: #EBF5FF;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 9999px;
+    padding: 0.5rem 1rem;
+    margin:0,5rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.nav-links {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.nav-links a {
+    color: #7caff1;
+    text-decoration: none;
+    transition: color 0.3s;
+    white-space: nowrap;
+}
+
+.nav-links a:hover {
+    color: #60A5FA;
+    border-bottom: 2px solid #60A5FA;
+}
+
+.logo {
+    width: 100px;
+    height: 32px;
+    margin-right: 0.75rem;
+}
+.h1-animated {
+    font-size: 2.25rem;
+    font-weight: bold;
+    color: #60A5FA;
+    margin-bottom: 1.2rem;
+    animation: fadeIn 1s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.calendar-section, .form-section {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.calendar-section h2 {
+    color: #2563eb;
+    margin-bottom: 1.5rem;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+textarea {
+    grid-column: span 2;
+    resize: vertical;
+    min-height: 100px;
+}
+
+button {
+    background: linear-gradient(135deg, #f1f2f6 0%, #60a5fa 100%);
+    color: white;
+    padding: 1rem;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.consultores-carousel {
+    position: relative;
+    margin: 2rem 0;
+    padding: 0 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: linear-gradient(135deg, #f1f2f6 0%, #60a5fa 100%);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 2;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center
+}
+
+.prev { left: 1rem; }
+.next { right: 1rem; }
+
+.consultores-wrapper {
+    display: flex;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    gap: 1.5rem;
+    padding: 2rem;
+}
+
+.consultor-card {
+    flex: 0 0 300px;
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+}
+
+.consultor-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.consultor-img {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.consultor-info h3 {
+    margin: 0;
+    color: #1f2937;
+}
+
+.consultor-especialidade {
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+.consultor-valor {
+    color: #5a89ed;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.consultor-descricao {
+    margin: 1rem 0;
+    color: #4b5563;
+    line-height: 1.5;
+    min-height: 100px; /* Altura mínima fixa */
+    overflow: hidden;
+}
+
+.consultor-skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.skill-tag {
+    background-color: #e5e7eb;
+    color: #374151;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+}
+
+.consultor-packs {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    min-height: 120px; /* Altura mínima fixa */
+}
+
+.pack-info {
+    margin: 0.5rem 0;
+    color: #7ca1ef;
+    font-weight: 500;
+}
+
+.linkedin-btn {
+    color: #2563eb;
+    text-decoration: none;
+    display: inline-block;
+    margin-top: 1rem;
+}
+
+.linkedin-btn:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .calendar-grid, .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    textarea {
+        grid-column: span 1;
+    }
+    
+    .consultor-card {
+        flex: 0 0 100%;
+    }
+}

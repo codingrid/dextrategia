@@ -166,12 +166,12 @@
         <nav>
             <div class="nav-links">
                 <img src="images/dextrategia_logo.png"Logo" class="logo">
-                <a href="http://127.0.0.1:5500/frontend/user-dashboard.html">Sobre nós</a>
-                <a href="http://127.0.0.1:5500/frontend/agendar-consulta.html">Agende sua consulta</a>  
+                <a href="http://localhost:3000/frontend/user-dashboard.html">Sobre nós</a>
+                <a href="http://localhost:3000/frontend/agendar-consulta.html">Agende sua consulta</a>  
             </div>
             <div class="nav-links">
                 <span>Bem-vindo, Usuário!</span>
-                <a href="#" id="logout">Sair</a>
+                <a href="http://localhost:3000/frontend/index.html" id="logout">Sair</a>
             </div>
         </nav>
     </div>
@@ -253,11 +253,7 @@
     </div>
 
     <script>
-        document.getElementById('logout').addEventListener('click', function(e) {
-            e.preventDefault();
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/logout';
+       
             
             // Add CSRF token if needed
             const csrfToken = document.querySelector('meta[name="csrf-token"]');

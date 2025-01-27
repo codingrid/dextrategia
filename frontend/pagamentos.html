@@ -8,22 +8,14 @@
    <link rel="stylesheet" href="pagamentos.css">
 </head>
 <body>
-   <nav>
-       <img src="logo.png" alt="Logo" class="logo">
-       <div class="nav-links">
-           <a href="index.html">Início</a>
-           <a href="consultores.html">Consultores</a>
-           <a href="agendamento.html">Agendar</a>
-           <a href="#" id="logout">Sair</a>
-       </div>
-   </nav>
+
 
    <div class="payment-container">
        <h2 class="payment-title">Escolher Método de Pagamento</h2>
        
        <div class="payment-methods">
            <div class="payment-method" data-method="mbway">
-               <img src="mbway-icon.svg" alt="MBWay" class="payment-method-icon">
+               <img src="https://images.seeklogo.com/logo-png/38/2/mbway-logo-png_seeklogo-389533.png" alt="MBWay" class="payment-method-icon">
                <div class="payment-method-details">
                    <div class="payment-method-name">MBWay</div>
                    <div class="payment-method-description">Pagamento instantâneo via telemóvel</div>
@@ -32,7 +24,7 @@
            </div>
 
            <div class="payment-method" data-method="cartao">
-               <img src="credit-card-icon.svg" alt="Cartão" class="payment-method-icon">
+               <img src="https://cdn-icons-png.flaticon.com/512/2695/2695969.png" alt="Cartão" class="payment-method-icon">
                <div class="payment-method-details">
                    <div class="payment-method-name">Cartão</div>
                    <div class="payment-method-description">Crédito ou débito</div>
@@ -41,7 +33,7 @@
            </div>
 
            <div class="payment-method" data-method="paypal">
-               <img src="paypal-icon.svg" alt="PayPal" class="payment-method-icon">
+               <img src="https://logodownload.org/wp-content/uploads/2014/10/paypal-logo-0.png" alt="PayPal" class="payment-method-icon">
                <div class="payment-method-details">
                    <div class="payment-method-name">PayPal</div>
                    <div class="payment-method-description">Pagamento online seguro</div>
@@ -54,27 +46,27 @@
            <div id="mbway-form" class="payment-form">
                <div class="form-group">
                    <label for="mbway-phone">Número de Telemóvel</label>
-                   <input type="text" id="mbway-phone" name="mbway-phone" placeholder="912345678" required>
+                   <input type="text" id="mbway-phone" name="mbway-phone" placeholder="912345678" >
                </div>
            </div>
 
            <div id="cartao-form" class="payment-form">
                <div class="form-group">
                    <label for="">Número do Cartão</label>
-                   <input type="text" id="card-number" name="card-number" placeholder="1234 5678 9012 3456" required>
+                   <input type="text" id="card-number" name="card-number" placeholder="1234 5678 9012 3456" >
                </div>
                <div class="form-group">
                    <label for="card-name">Nome no Cartão</label>
-                   <input type="text" id="card-name" name="card-name" placeholder="João Silva" required>
+                   <input type="text" id="card-name" name="card-name" placeholder="João Silva" >
                </div>
                <div class="grid-2">
                    <div class="form-group">
                        <label for="card-expiry">Validade</label>
-                       <input type="text" id="card-expiry" name="card-expiry" placeholder="MM/AA" required>
+                       <input type="text" id="card-expiry" name="card-expiry" placeholder="MM/AA" >
                    </div>
                    <div class="form-group">
-                       <label for="card-cvv">CVV</label>
-                       <input type="text" id="card-cvv" name="card-cvv" placeholder="123" required>
+                       <label for="card-cvc">CVV</label>
+                       <input type="text" id="card-cvv" name="card-cvv" placeholder="123" >
                    </div>
                </div>
            </div>
@@ -82,20 +74,21 @@
            <div id="paypal-form" class="payment-form" >
                <div class="form-group">
                    <label for="paypal-email">E-mail PayPal</label>
-                   <input type="email" id="paypal-email" name="paypal-email" placeholder="seu-email@exemplo.com" required>
+                   <input type="email" id="paypal-email" name="paypal-email" placeholder="seu-email@exemplo.com" >
                </div>
            </div>
 
            <div class="payment-summary">
-               <div class="summary-item">
-                   <span>Serviço:</span>
-                   <span id="service-name">Consultoria Empresarial</span>
-               </div>
-               <div class="summary-item">
-                   <span>Valor Total:</span>
-                   <span id="total-value">€</span>
-               </div>
-           </div>
+            <div class="summary-item">
+                <span>Serviço:</span>
+                <span id="service-name"></span>
+            </div>
+            <div class="summary-item">
+                <span>Valor Total:</span>
+                <span id="total-value"></span>
+            </div>
+        </div>
+        
 
            <button type="submit" class="btn-payment">Confirmar Pagamento</button>
        </form>

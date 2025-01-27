@@ -1,9 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
     const bookingDetails = JSON.parse(localStorage.getItem('bookingDetails') || '{}');
     const paymentMethods = document.querySelectorAll('.payment-method');
-    const paymentForms = document.querySelectorAll('.payment-form');
     const mainForm = document.getElementById('payment-form');
- 
+
+    // Inicialmente esconder o formulário principal
+    if (mainForm) mainForm.classList.add('hidden');
+    
+    // Esconder todos os formulários de pagamento
+    document.querySelectorAll('.payment-form').forEach(form => {
+        form.style.display = 'none';
+    });
     if (bookingDetails.servico) {
         document.getElementById('service-name').textContent = bookingDetails.servico;
     }
@@ -21,113 +27,118 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('card-name').value = bookingDetails.nomeCliente;
     }
  
+    
+    // Event listeners para métodos de pagamento
     paymentMethods.forEach(method => {
         method.addEventListener('click', () => {
-            // Reset dos métodos
             paymentMethods.forEach(m => {
                 m.classList.remove('active');
-                m.querySelector('.payment-method-select').innerHTML = '';
+                const selectElement = m.querySelector('.payment-method-select');
+                if (selectElement) selectElement.innerHTML = '';
             });
     
-            // Esconder todos os formulários
             document.querySelectorAll('.payment-form').forEach(form => {
                 form.style.display = 'none';
             });
     
-            // Ativar método selecionado
             method.classList.add('active');
-            method.querySelector('.payment-method-select').innerHTML = '✓';
+            const selectElement = method.querySelector('.payment-method-select');
+            if (selectElement) selectElement.innerHTML = '✓';
     
-            // Mostrar formulário correspondente
             const selectedMethod = method.dataset.method;
             const selectedForm = document.getElementById(`${selectedMethod}-form`);
-            selectedForm.style.display = 'block';
-            mainForm.classList.remove('hidden');
+            if (selectedForm) {
+                selectedForm.style.display = 'block';
+                mainForm.classList.remove('hidden');
+            }
         });
     });
- 
-    mainForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+
+    // Set MBWAY como default
+    const mbwayMethod = document.querySelector('[data-method="mbway"]');
+    if (mbwayMethod) {
+        mbwayMethod.classList.add('active');
+        const selectElement = mbwayMethod.querySelector('.payment-method-select');
+        if (selectElement) selectElement.innerHTML = '✓';
+        const mbwayForm = document.getElementById('mbway-form');
+        if (mbwayForm) {
+            mbwayForm.style.display = 'block';
+            mainForm.classList.remove('hidden');
+        }
+    }
+
+    if (mainForm) {
+        mainForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const activeMethodElement = document.querySelector('.payment-method.active');
+            if (!activeMethodElement) return;
+            
+            const activeMethod = activeMethodElement.dataset.method;
+            let isValid = true;
         
-        const activeMethod = document.querySelector('.payment-method.active').dataset.method;
-        let isValid = true;
- 
-        if (activeMethod === 'mbway') {
-            const mbwayPhone = document.getElementById('mbway-phone');
-            if (!mbwayPhone.value.trim()) {
-                mbwayPhone.classList.add('error');
-                isValid = false;
-            }
-        } else if (activeMethod === 'card') {
-            const cardInputs = document.querySelectorAll('#card-form input');
-            cardInputs.forEach(input => {
-                if (!input.value.trim()) {
-                    input.classList.add('error');
+            if (activeMethod === 'mbway') {
+                const mbwayPhone = document.getElementById('mbway-phone');
+                if (mbwayPhone && !mbwayPhone.value.trim()) {
+                    mbwayPhone.classList.add('error');
                     isValid = false;
                 }
-            });
-        } else if (activeMethod === 'paypal') {
-            const paypalEmail = document.getElementById('paypal-email');
-            if (!paypalEmail.value.trim()) {
-                paypalEmail.classList.add('error');
-                isValid = false;
-            }
-        }
- 
-        if (isValid) {
-            try {
-                const response = await fetch('http://localhost:5000/confirmar-pagamento', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        emailCliente: bookingDetails.emailCliente,
-                        nomeCliente: bookingDetails.nomeCliente
-                    })
+                document.querySelectorAll('#card-form input, #paypal-form input').forEach(input => {
+                    input.classList.remove('error');
                 });
- 
-                const data = await response.json();
-                
-                if (data.success) {
-                    const paymentMethod = document.querySelector('.payment-method.active .payment-method-name').textContent;
-                    const totalValue = document.getElementById('total-value').textContent;
- 
-                    alert(`Pagamento processado com sucesso!\n\nServiço: ${bookingDetails.servico}\nValor: ${totalValue}\nMétodo: ${paymentMethod}`);
-                    localStorage.removeItem('bookingDetails');
-                    window.location.href = 'confirmacao.html';
+            } else if (activeMethod === 'card') {
+                const cardInputs = document.querySelectorAll('#card-form input');
+                cardInputs.forEach(input => {
+                    if (!input.value.trim()) {
+                        input.classList.add('error');
+                        isValid = false;
+                    }
+                });
+                document.querySelectorAll('#mbway-form input, #paypal-form input').forEach(input => {
+                    input.classList.remove('error');
+                });
+            } else if (activeMethod === 'paypal') {
+                const paypalEmail = document.getElementById('paypal-email');
+                if (paypalEmail && !paypalEmail.value.trim()) {
+                    paypalEmail.classList.add('error');
+                    isValid = false;
                 }
-            } catch (error) {
-                console.error('Erro ao processar pagamento:', error);
-                alert('Erro ao processar pagamento. Tente novamente.');
+                document.querySelectorAll('#card-form input, #mbway-form input').forEach(input => {
+                    input.classList.remove('error');
+                });
             }
-        } else {
-            alert('Por favor, preencha todos os campos corretamente.');
-        }
-    });
- 
+        
+            if (isValid) {
+                window.location.href = 'confirmacao.html';
+            } else {
+                alert('Por favor, preencha todos os campos corretamente.');
+            }
+        });
+    }
+
+    // Input masks
     function maskInput(input, mask) {
+        if (!input) return;
+        
         input.addEventListener('input', function() {
             const cleanValue = this.value.replace(/\D/g, '');
             let maskedValue = '';
             let pos = 0;
- 
-            for (let i = 0; i < mask.length; i++) {
+    
+            for (let i = 0; i < mask.length && pos < cleanValue.length; i++) {
                 if (mask[i] === 'X') {
-                    if (pos < cleanValue.length) {
-                        maskedValue += cleanValue[pos];
-                        pos++;
-                    }
+                    maskedValue += cleanValue[pos];
+                    pos++;
                 } else {
                     maskedValue += mask[i];
                 }
             }
- 
+    
             this.value = maskedValue;
         });
     }
- 
+
     maskInput(document.getElementById('mbway-phone'), 'XXX XXX XXX');
     maskInput(document.getElementById('card-number'), 'XXXX XXXX XXXX XXXX');
     maskInput(document.getElementById('card-expiry'), 'XX/XX');
- });
+});

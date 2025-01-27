@@ -1,20 +1,175 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo</title>
+    <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-  <h1>Bem-vindo ao Dashboard do Administrador</h1>
-  <p>Você tem acesso a funcionalidades exclusivas de administrador.</p>
-  <button onclick="logout()">Sair</button>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="logo">
+                <img src="images/dextrategia_logo.png" alt="Logo">
+            </div>
+            <nav>
+                <ul>
+                    <li class="active"><a href="#dashboard">Dashboard</a></li>
+                    <li><a href="#financeiro">Relatórios Financeiros</a></li>
+                    <li><a href="#consultores">Cadastro de Consultores</a></li>
+                </ul>
+            </nav>
+        </aside>
 
-  <script>
-    function logout() {
-      localStorage.removeItem('token');
-      window.location.href = '/index.html';
-    }
-  </script>
+        <main class="main-content">
+            <header>
+                <h1>Painel Administrativo</h1>
+                <div class="user-info">
+                    <span> Olá! Administrador</span>
+                    
+                </div>
+            </header>
+
+            <section id="financial-reports">
+                <h2>Relatórios Financeiros</h2>
+                <div class="filter-section">
+                    <div class="filter-container">
+                        <label for="consultant-filter">Filtrar por Consultor:</label>
+                        <select id="consultant-filter" name="consultant">
+                            <option value="">Todos os Consultores</option>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="filter-container">
+                        <label for="date-filter">Filtrar por Data:</label>
+                        <input type="date" id="date-filter" name="meeting-date">
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart" id="revenue-chart">
+                        <h3>Receita Total</h3>
+                        <canvas id="revenueChartCanvas"></canvas>
+                    </div>
+                    <div class="chart" id="payments-chart">
+                        <h3>Pagamentos nos Últimos 15 Dias</h3>
+                        <canvas id="paymentsChartCanvas"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section id="meetings-documents">
+                <h2>Documentos de Reuniões</h2>
+                <div class="documents-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Consultor</th>
+                                <th>Documentos</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="documents-list">
+                            <!-- Table rows will be populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section id="consultores" style="display: none;">
+                <h2>Cadastro de Consultores</h2>
+                <form id="consultor-form" class="consultant-registration-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nome">Nome Completo</label>
+                            <input type="text" id="nome" name="nome" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="especialidade">Especialidade</label>
+                            <input type="text" id="especialidade" name="especialidade" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="valor_hora">Valor por Hora (R$)</label>
+                            <input type="number" id="valor_hora" name="valor_hora" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="linkedin_url">Perfil LinkedIn</label>
+                            <input type="url" id="linkedin_url" name="linkedin_url">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="foto">Foto do Consultor</label>
+                            <input type="file" id="foto" name="foto" accept="image/*">
+                        </div>
+                        <div class="form-group">
+                            <label for="pacotes_horas">Pacotes de Horas (separados por vírgula)</label>
+                            <input type="text" id="pacotes_horas" name="pacotes_horas" placeholder="Ex: 5, 10, 15">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email">E-mail de Acesso</label>
+                            <input type="email" id="email" name="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="senha">Senha de Acesso</label>
+                            <input type="password" id="senha" name="senha" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Cadastrar Consultor</button>
+                        <button type="button" id="limpar-form" class="btn btn-secondary">Limpar Formulário</button>
+                    </div>
+                </form>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-primary" onclick="showAdminForm()">Novo Administrador</button>
+                </div>
+                
+                <form id="admin-form" style="display: none;" onsubmit="createAdmin(event)">
+                    <h3>Criar Novo Administrador</h3>
+                    <div class="form-group">
+                        <label for="admin-name">Nome</label>
+                        <input type="text" id="admin-name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-email">Email</label>
+                        <input type="email" id="admin-email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="admin-password">Senha</label>
+                        <input type="password" id="admin-password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Criar Administrador</button>
+                </form>
+                <div class="consultores-cadastrados">
+                    <h3>Consultores Cadastrados</h3>
+                    <table id="lista-consultores">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Especialidade</th>
+                                <th>Valor/Hora</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Consultores serão populados dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="admin.js"></script>
 </body>
 </html>

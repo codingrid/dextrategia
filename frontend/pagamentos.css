@@ -1,4 +1,15 @@
-/* Payment Page Specific Styles */
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding-top: 50px;
+    background-image: url('images/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    height: 100vh;
+    margin: 0;
+}
 .payment-container {
     background: rgba(255, 255, 255, 0.95);
     border-radius: 20px;

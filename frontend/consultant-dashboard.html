@@ -1,20 +1,271 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Consultant Dashboard</title>
+    <meta charset="UTF-8">
+    <title>Dashboard do Consultor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        body {
+            background-image: url('images/background.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        nav {
+            background-color: #EBF5FF;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 9999px;
+            padding: 0.5rem 1rem;
+            margin: 0.5rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .profile-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .hours-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .time-slot {
+            position: relative;
+        }
+
+        .time-slot input[type="checkbox"] {
+            display: none;
+        }
+
+        .time-slot label {
+            display: block;
+            padding: 0.75rem;
+            background: #f8fafc;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .time-slot input[type="checkbox"]:checked + label {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .time-slot label:hover {
+            border-color: #2563eb;
+        }
+
+        .calendar-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .appointments-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .appointment-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .documents-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+
+        .upload-area {
+            border: 2px dashed #e5e7eb;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            margin: 1rem 0;
+        }
+    </style>
 </head>
 <body>
-  <h1>Bem-vindo ao Dashboard do Consultor</h1>
-  <p>Você tem acesso a funcionalidades exclusivas de consultor.</p>
-  <button onclick="logout()">Sair</button>
+    <div class="container">
+        <nav>
+            <div class="nav-links">
+                <img src="images/dextrategia_logo.png" alt="Logo" class="logo" style="height: 40px;">
+                <span>Dashboard do Consultor</span>
+            </div>
+            <div class="nav-links">
+                <span id="consultant-name">Bem-vindo, Consultor!</span>
+                <button onclick="logout()">Sair</button>
+            </div>
+        </nav>
 
-  <script>
-    function logout() {
-      localStorage.removeItem('token');
-      window.location.href = '/index.html';
-    }
-  </script>
+        <div class="profile-section">
+            <div>
+                <h2 id="consultant-full-name"></h2>
+                <p id="consultant-specialty"></p>
+                <p id="consultant-rate"></p>
+            </div>
+        </div>
+
+        <div class="calendar-section">
+            <h2>Disponibilidade</h2>
+            <div id="calendar"></div>
+            <div class="hours-grid">
+                <div class="time-slot">
+                    <input type="checkbox" id="time-09" value="09:00">
+                    <label for="time-09">09:00</label>
+                </div>
+                <div class="time-slot">
+                    <input type="checkbox" id="time-10" value="10:00">
+                    <label for="time-10">10:00</label>
+                </div>
+                <div class="time-slot">
+                    <input type="checkbox" id="time-11" value="11:00">
+                    <label for="time-11">11:00</label>
+                </div>
+                <div class="time-slot">
+                    <input type="checkbox" id="time-14" value="14:00">
+                    <label for="time-14">14:00</label>
+                </div>
+                <div class="time-slot">
+                    <input type="checkbox" id="time-15" value="15:00">
+                    <label for="time-15">15:00</label>
+                </div>
+                <div class="time-slot">
+                    <input type="checkbox" id="time-16" value="16:00">
+                    <label for="time-16">16:00</label>
+                </div>
+            </div>
+            <button onclick="saveAvailability()">Salvar Disponibilidade</button>
+        </div>
+
+        <div class="appointments-section">
+            <h2>Agendamentos</h2>
+            <div id="appointments-list"></div>
+        </div>
+
+        <div class="documents-section">
+            <h2>Documentos</h2>
+            <div class="upload-area" id="drop-zone">
+                <p>Arraste arquivos aqui ou</p>
+                <button onclick="document.getElementById('file-input').click()">Selecionar Arquivos</button>
+                <input type="file" id="file-input" style="display: none" multiple>
+            </div>
+            <div id="documents-list"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  loadConsultantInfo();
+  loadConsultantMeetings();
+});
+
+async function loadConsultantInfo() {
+  try {
+    const response = await fetch('http://localhost:3000/api/consultant/info', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    
+    const consultant = await response.json();
+    const infoContainer = document.getElementById('consultantInfo');
+    infoContainer.innerHTML = `
+      <h2>Bem-vindo, ${consultant.name}</h2>
+      <p>Especialidade: ${consultant.especialidade}</p>
+      <p>Valor/hora: R$ ${consultant.valor_hora}</p>
+    `;
+  } catch (error) {
+    alert('Erro ao carregar informações do consultor');
+  }
+}
+
+async function loadConsultantMeetings() {
+  // Similar ao loadMeetings do admin, mas filtrando por consultor
+  const consultantName = document.getElementById('consultantInfo')?.querySelector('h2')?.textContent.split(',')[1]?.trim();
+  
+  try {
+    const response = await fetch(`http://localhost:3000/api/meetings?consultant=${consultantName}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    
+    const meetings = await response.json();
+    const meetingsContainer = document.getElementById('consultantMeetings');
+    meetingsContainer.innerHTML = '';
+    
+    meetings.forEach(meeting => {
+      const meetingElement = document.createElement('div');
+      meetingElement.innerHTML = `
+        <h3>Data: ${new Date(meeting.meeting_date).toLocaleDateString()}</h3>
+        <a href="${meeting.pdf_path}" target="_blank">Ver ata</a>
+      `;
+      meetingsContainer.appendChild(meetingElement);
+    });
+  } catch (error) {
+    alert('Erro ao carregar atas de reuniões');
+  }
+}
+    </script>
 </body>
 </html>
