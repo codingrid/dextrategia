@@ -1,0 +1,3469 @@
+
+# Explicação gerada para: app.js
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+const express = require('express');
+const mysql = require('mysql');
+const cors = require('cors');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const path = require('path');
+
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const db = mysql.createConnection({
+  host: '127.0.0.1',
+  user: 'root',
+  password: '',
+  database: 'dextrategia'
+});
+db.connect((err) => {
+  if (err) {
+      console.error('Erro ao conectar ao banco de dados:', err);
+      return;
+  }
+  console.log('Conectado ao banco de dados.');
+});
+
+
+
+
+
+
+// Middlewares
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../frontend')));
+
+
+// Middleware de autenticação
+const authenticateToken = (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (!token) return res.sendStatus(401);
+
+  jwt.verify(token, 'seu_secret_key', (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
+};
+
+app.get('/api/consultants', authenticateToken, (req, res) => {
+  db.query(
+      'SELECT id, name, email, especialidade, valor_hora, linkedin_url FROM consultants',
+      (err, results) => {
+          if (err) {
+              console.error('Erro ao listar consultores:', err);
+              return res.status(500).json({ error: 'Erro ao listar consultores' });
+          }
+          res.json(results);
+      }
+  );
+});
+
+// Rota para criar consultor
+app.post('/auth/consultants', async (req, res) => {
+  try {
+      const { name, email, password, especialidade, valor_hora, linkedin_url } = req.body;
+      
+      if (!email.endsWith('@consult.admin')) {
+          return res.status(400).json({ error: 'Email deve terminar com @consult.admin' });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Query simplificada sem user_id
+      db.query(
+          'INSERT INTO consultants (name, email, password, especialidade, valor_hora, linkedin_url) VALUES (?, ?, ?, ?, ?, ?)',
+          [name, email, hashedPassword, especialidade, valor_hora, linkedin_url],
+          (err, result) => {
+              if (err) {
+                  console.error('Erro ao criar consultor:', err);
+                  return res.status(500).json({ error: err.message });
+              }
+              res.status(201).json({ message: 'Consultor criado com sucesso' });
+          }
+      );
+  } catch (error) {
+      console.error('Erro ao criar consultor:', error);
+      res.status(500).json({ error: error.message });
+  }
+});
+
+
+
+
+// Rota PUT - Atualizar consultor
+app.put('/api/consultants/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { name, especialidade, valor_hora, linkedin_url, pacotes_horas, password } = req.body;
+
+  try {
+      let query = 'UPDATE consultants SET name = ?, especialidade = ?, valor_hora = ?, linkedin_url = ?, pacotes_horas = ?'; // Mudado de users para consultants
+      let params = [name, especialidade, valor_hora, linkedin_url, JSON.stringify(pacotes_horas)];
+
+      if (password) {
+          const hashedPassword = await bcrypt.hash(password, 10);
+          query += ', password = ?';
+          params.push(hashedPassword);
+      }
+
+      query += ' WHERE id = ?'; // Removido o filtro de user_type
+      params.push(id);
+
+      db.query(query, params, (err, result) => {
+          if (err) {
+              console.error('Erro ao atualizar consultor:', err);
+              return res.status(500).json({ error: 'Erro ao atualizar consultor' });
+          }
+          res.json({ message: 'Consultor atualizado com sucesso' });
+      });
+  } catch (error) {
+      console.error('Erro ao atualizar consultor:', error);
+      res.status(500).json({ error: 'Erro ao atualizar consultor' });
+  }
+});
+
+// Rota DELETE - Excluir consultor
+app.delete('/api/consultants/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  
+  db.query(
+      'DELETE FROM consultants WHERE id = ?', // Mudado de users para consultants e removido user_type
+      [id],
+      (err, result) => {
+          if (err) {
+              console.error('Erro ao excluir consultor:', err);
+              return res.status(500).json({ error: 'Erro ao excluir consultor' });
+          }
+          res.json({ message: 'Consultor excluído com sucesso' });
+      }
+  );
+});
+
+
+
+
+
+
+
+
+
+
+app.post('/api/admin/create', authenticateToken, async (req, res) => {
+    const { name, email, password } = req.body;
+
+    if (!email.endsWith('@admin.com')) {
+        return res.status(400).json({ error: 'Email deve terminar com @admin.com' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        db.query(
+            'INSERT INTO users (name, email, password, is_admin, user_type) VALUES (?, ?, ?, 1, "admin")',
+            [name, email, hashedPassword],
+            (err, result) => {
+                if (err) {
+                    console.error('Erro ao criar administrador:', err);
+                    return res.status(500).json({ error: 'Erro ao criar administrador' });
+                }
+                res.status(201).json({ 
+                    id: result.insertId,
+                    name,
+                    email
+                });
+            }
+        );
+    } catch (error) {
+        console.error('Erro ao criar administrador:', error);
+        res.status(500).json({ error: 'Erro ao criar administrador' });
+    }
+});
+
+app.get('/api/meetings/recent', authenticateToken, (req, res) => {
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    
+    db.query(
+        `SELECT p.*, u.name as consultant_name 
+         FROM payments p 
+         JOIN users u ON p.consultor = u.name 
+         WHERE p.data_consulta >= ?
+         ORDER BY p.data_consulta DESC`,
+        [fifteenDaysAgo.toISOString().split('T')[0]],
+        (err, results) => {
+            if (err) {
+                console.error('Erro ao listar reuniões:', err);
+                return res.status(500).json({ error: 'Erro ao listar reuniões' });
+            }
+            res.json(results);
+        }
+    );
+});
+
+
+
+
+
+app.get('/frontend/index.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
+app.get('/frontend/user-dashboard.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/user-dashboard.html'));
+});
+app.get('/frontend/admin-dashboard.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/admin-dashboard.html'));
+});
+app.get('/frontend/admin.css', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/admin.css'));
+});
+
+app.get('/frontend/images/dextrategia_logo.png', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/images/dextrategia_logo.png'));
+});
+app.get('/frontend/agendar-consulta.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/agendar-consulta.html'));
+});
+app.get('/frontend/agendar.css', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/agendar.css'));
+});
+
+app.get('/frontend/agendar.js', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/agendar.js'));
+});
+
+app.get('/frontend/pagamentos.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/pagamentos.html'));
+});
+
+app.get('/frontend/pagamentos.css', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/pagamentos.css'));
+});
+app.get('/frontend/pagamentos.js', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/pagamentos.js'));
+});
+
+app.get('/frontend/confirmacao.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/confirmacao.html'));
+});
+
+app.get('/frontend/images/background.png', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/images/background.png'));
+});
+
+app.get('/frontend/consultant-dashboard.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/consultant-dashboard.html'));
+});
+
+app.get('/frontend/admin.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.sendFile(path.join(__dirname, '../frontend/admin.js'));
+});
+// Listar todos os consultores
+
+
+// Criar admin inicial
+const createInitialAdmin = async () => {
+  const adminEmail = 'fernando@admin.com';
+  const adminPassword = await bcrypt.hash('1234', 10);
+  
+  db.query('SELECT * FROM users WHERE email = ?', [adminEmail], (err, results) => {
+    if (err) throw err;
+    if (results.length === 0) {
+      db.query(
+        'INSERT INTO users (name, email, password, is_admin, user_type) VALUES (?, ?, ?, 1, "admin")',
+        ['Admin', adminEmail, adminPassword]
+      );
+    }
+  });
+};
+
+createInitialAdmin();
+
+// Login
+app.post('/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  
+  // Primeiro tenta encontrar na tabela users
+  db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    // Se não encontrou em users, procura em consultants
+    if (results.length === 0) {
+      db.query('SELECT * FROM consultants WHERE email = ?', [email], async (err, consultResults) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (consultResults.length === 0) return res.status(401).json({ error: 'Usuário não encontrado' });
+
+        const consultant = consultResults[0];
+        const validPassword = await bcrypt.compare(password, consultant.password);
+        if (!validPassword) return res.status(401).json({ error: 'Senha inválida' });
+
+        const token = jwt.sign(
+          { id: consultant.id, email: consultant.email, type: 'consultant' }, 
+          'seu_secret_key'
+        );
+        res.json({ token, user_type: 'consultant' });
+      });
+      return;
+    }
+
+    // Caso tenha encontrado em users, continua com a lógica existente
+    const user = results[0];
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) return res.status(401).json({ error: 'Senha inválida' });
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, type: user.user_type }, 
+      'seu_secret_key'
+    );
+    res.json({ token, user_type: user.user_type });
+  });
+});
+// Registro de usuário
+app.post('/auth/register', async (req, res) => {
+  const { name, email, password } = req.body;
+  
+  if (!email.match(/@(gmail\.com|hotmail\.com|outlook\.com)$/)) {
+    return res.status(400).json({ error: 'Domínio de email não permitido' });
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  
+  db.query(
+    'INSERT INTO users (name, email, password, user_type) VALUES (?, ?, ?, "user")',
+    [name, email, hashedPassword],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: 'Usuário registrado com sucesso' });
+    }
+  );
+});
+
+app.post('/auth/admin', async (req, res) => {
+  try {
+    const { nome, email, senha } = req.body;
+    const hashedPassword = await bcrypt.hash(senha, 10);
+    
+    db.query(
+      'INSERT INTO users (name, email, password, is_admin, user_type) VALUES (?, ?, ?, 1, "admin")',
+      [nome, email, hashedPassword],
+      (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Admin criado com sucesso' });
+      }
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Criar consultor
+app.post('/auth/consultants', async (req, res) => {
+  try {
+    const { nome, email, senha, especialidade, valor_hora, linkedin_url, pacotes_horas } = req.body;
+    const hashedPassword = await bcrypt.hash(senha, 10);
+    
+    db.query(
+      'INSERT INTO users (name, email, password, especialidade, valor_hora, linkedin_url, pacotes_horas, user_type) VALUES (?, ?, ?, ?, ?, ?, ?, "consultor")',
+      [nome, email, hashedPassword, especialidade, valor_hora, linkedin_url, JSON.stringify(pacotes_horas)],
+      (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Consultor criado com sucesso' });
+      }
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// No app.js, adicione a rota para salvar pagamentos
+app.post('/api/payments', (req, res) => {
+  const { nome, email, servico, valor_total, forma_pagamento, consultor, data_consulta, hora_consulta } = req.body;
+  
+  const query = `
+      INSERT INTO payments (nome, email, servico, valor_total, forma_pagamento, consultor, data_consulta, hora_consulta)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+      
+  const values = [nome, email, servico, valor_total, forma_pagamento, consultor, data_consulta, hora_consulta];
+  
+  db.query(query, values, (err, result) => {
+      if (err) {
+          console.error('Erro ao salvar pagamento:', err);
+          res.status(500).json({ error: 'Erro ao processar pagamento' });
+          return;
+      }
+      res.json({ success: true, id: result.insertId });
+  });
+});
+
+
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`Acesse: http://localhost:${PORT}`);
+});
+
+
+
+# Explicação gerada para: config.js
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+// config.js
+module.exports = {
+    mailersendApiToken: 'mlsn.37aaca2e0a5a26a54f6cacf881f02448aaf90c0e11323403ccbdee7944b0d00f'
+  }
+
+
+
+# Explicação gerada para: db.js
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+const mysql = require('mysql2');
+
+const db = mysql.createConnection({
+  host: '127.0.0.1',
+  user: 'root',
+  password: '', // Adicione sua senha, se houver
+  database: 'dextrategia',
+});
+
+db.connect((err) => {
+  if (err) {
+    console.error('Erro ao conectar ao banco:', err.message);
+    return;
+  }
+  console.log('Conexão com o banco de dados bem-sucedida!');
+});
+
+module.exports = db;
+
+
+
+
+# Explicação gerada para: auth.js
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+const express = require('express');
+const router = express.Router();
+const db = require('../models/db'); // Banco de dados
+
+// Rota para registrar um novo usuário
+app.post('/auth/register', (req, res) => {
+    const { name, email, password } = req.body;
+
+    // Verificar se o e-mail já existe
+    const checkQuery = 'SELECT * FROM users WHERE email = ?';
+    db.query(checkQuery, [email], (err, results) => {
+        if (err) {
+            return res.status(500).json({ message: 'Erro ao verificar e-mail no banco de dados' });
+        }
+
+        if (results.length > 0) {
+            return res.status(400).json({ message: 'E-mail já cadastrado!' });
+        }
+
+        // Criptografar a senha e inserir o usuário
+        bcrypt.hash(password, 10, (err, hashedPassword) => {
+            if (err) {
+                return res.status(500).json({ message: 'Erro ao criptografar a senha' });
+            }
+
+            const insertQuery = 'INSERT INTO users (name, email, password, user_type) VALUES (?, ?, ?, ?)';
+            const userType = getUserTypeByEmail(email);
+
+            db.query(insertQuery, [name, email, hashedPassword, userType], (err, result) => {
+                if (err) {
+                    return res.status(500).json({ message: 'Erro ao registrar usuário no banco de dados' });
+                }
+
+                res.status(201).json({ message: 'Usuário registrado com sucesso!', redirectUrl: `frontend/${userType}-dashboard.html` });
+            });
+        });
+    });
+});
+
+
+// Rota para login
+router.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        // Consultar no banco
+        const [user] = await db.query('SELECT * FROM USERS WHERE email = ? AND password = ?', [email, password]);
+        if (user) {
+            res.json({ message: 'Login bem-sucedido!', userType: user.userType });
+        } else {
+            res.status(401).json({ message: 'Credenciais inválidas.' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Erro ao fazer login.' });
+    }
+});
+
+module.exports = router;
+
+
+
+
+# Explicação gerada para: availability_routes.js
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+const express = require('express');
+const router = express.Router();
+const mysql = require('mysql2/promise');
+
+const pool = mysql.createPool({
+    host: '127.0.0.1',
+    user: 'root',
+    password: '',
+    database: 'dextrategia'
+});
+
+// Salvar disponibilidade
+router.post('/api/consultant/availability', async (req, res) => {
+    const { consultantId, date, hours } = req.body;
+    try {
+        const [existing] = await pool.query(
+            'SELECT id FROM consultant_availability WHERE consultant_id = ? AND date = ?',
+            [consultantId, date]
+        );
+
+        if (existing.length > 0) {
+            await pool.query(
+                'UPDATE consultant_availability SET hours = ? WHERE consultant_id = ? AND date = ?',
+                [JSON.stringify(hours), consultantId, date]
+            );
+        } else {
+            await pool.query(
+                'INSERT INTO consultant_availability (consultant_id, date, hours) VALUES (?, ?, ?)',
+                [consultantId, date, JSON.stringify(hours)]
+            );
+        }
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Buscar disponibilidade
+router.get('/api/consultant/availability/:consultantId/:date?', async (req, res) => {
+    const { consultantId, date } = req.params;
+    try {
+        let query = 'SELECT date, hours FROM consultant_availability WHERE consultant_id = ?';
+        const params = [consultantId];
+        
+        if (date) {
+            query += ' AND date = ?';
+            params.push(date);
+        }
+        
+        const [results] = await pool.query(query, params);
+        res.json(results.map(row => ({
+            date: row.date,
+            hours: JSON.parse(row.hours)
+        })));
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+module.exports = router;
+
+# Explicação gerada para: admin-dashboard.html
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Administrativo</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="admin.css">
+   
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <img src="images/dextrategia_logo.png" alt="Logo">
+            </div>
+            <nav>
+                <ul>
+                    <li class="active">
+                        <a href="#dashboard">
+                            <i class="fas fa-home"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#consultores">
+                            <i class="fas fa-users"></i>
+                            <span>Consultores</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#financeiro">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Financeiro</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#reunioes">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Reuniões</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#configuracoes">
+                            <i class="fas fa-cog"></i>
+                            <span>Configurações</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1>Dashboard Administrativo</h1>
+               
+                <div class="user-info">
+                    <span>Bem-vindo, Admin</span>
+                    <button class="btn btn-primary" onclick="showConsultantForm()">
+                        <i class="fas fa-user-plus"></i> Novo Consultor
+                    </button>
+                    <button class="btn btn-primary" onclick="showAdminForm()">
+                        <i class="fas fa-user-plus"></i> Novo Admin
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="active">
+                <!-- Cards com métricas -->
+                <div class="cards-grid">
+                    <div class="card">
+                        <h3>Total de Consultores</h3>
+                        <p class="number" id="total-consultores">...</p>
+                    </div>
+                    <div class="card">
+                        <h3>Reuniões este mês</h3>
+                        <p class="number" id="total-reunioes">...</p>
+                    </div>
+                    <div class="card">
+                        <h3>Receita Mensal</h3>
+                        <p class="number" id="receita-mensal">...</p>
+                    </div>
+                    <div class="card">
+                        <h3>Clientes Ativos</h3>
+                        <p class="number" id="clientes-ativos">...</p>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="charts-container">
+                    <div class="chart-card">
+                        <h3>Receita Mensal</h3>
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Distribuição por Consultor</h3>
+                        <canvas id="consultantRevenueChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Reuniões Recentes -->
+                <div class="table-container">
+                    <h3>Últimas Reuniões</h3>
+                    <table id="recent-meetings">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Consultor</th>
+                                <th>Cliente</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dados serão inseridos via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Consultores Section -->
+            <section id="consultores" style="display: none;">
+                <div class="section-header">
+                    <h2>Gerenciar Consultores</h2>
+                    <button class="btn btn-primary" onclick="showConsultantForm()">
+                        <i class="fas fa-plus"></i> Novo Consultor
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table id="lista-consultores">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Especialidade</th>
+                                <th>Valor/Hora</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dados serão inseridos via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Financeiro Section -->
+            <section id="financeiro" style="display: none;">
+                <div class="section-header">
+                    <h2>Relatórios Financeiros</h2>
+                    <div class="filters">
+                        <input type="month" id="month-filter">
+                        <button class="btn btn-primary" onclick="generateReport()">Gerar Relatório</button>
+                    </div>
+                </div>
+
+                <div id="financial-reports">
+                    <!-- Relatórios serão inseridos via JavaScript -->
+                </div>
+            </section>
+
+            <!-- Reuniões Section -->
+            <section id="reunioes" style="display: none;">
+                <div class="section-header">
+                    <h2>Gestão de Reuniões</h2>
+                    <div class="filters">
+                        <select id="consultant-filter">
+                            <option value="">Todos os Consultores</option>
+                        </select>
+                        <input type="date" id="date-filter">
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="meetings-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Consultor</th>
+                                <th>Cliente</th>
+                                <th>Documentos</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dados serão inseridos via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="/frontend/admin.js"></script>
+</body>
+</html>
+
+
+
+# Explicação gerada para: admin.css
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+
+:root {
+    --primary-color: #1A5F7A;
+    --secondary-color: #2C88B0;
+    --background-color: #f5f6fa;
+    --sidebar-width: 250px;
+    --header-height: 60px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    
+}
+
+body {
+   font-family: 'Poppins', sans-serif;
+   background: url('images/background.png') no-repeat center center fixed;
+   background-size: cover;
+   color: var(--text-color);
+}
+
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Sidebar Styles */
+.sidebar {
+    width: var(--sidebar-width);
+    
+    color: white;
+    padding: 20px;
+    position: fixed;
+    height: 100vh;
+    transition: all 0.3s ease;
+}
+
+.sidebar .logo {
+    padding: 20px 0;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 20px;
+}
+
+.sidebar .logo img {
+    max-width: 150px;
+    height: auto;
+}
+
+.sidebar nav ul {
+    list-style: none;
+}
+
+.sidebar nav ul li {
+    margin-bottom: 5px;
+}
+
+.sidebar nav ul li a {
+    color: white;
+    text-decoration: none;
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.sidebar nav ul li a i {
+    margin-right: 10px;
+    width: 20px;
+}
+
+.sidebar nav ul li a:hover,
+.sidebar nav ul li.active a {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Main Content Styles */
+.main-content {
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    padding: 20px;
+}
+
+.header {
+    background: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h1 {
+    color: var(--primary-color);
+    font-size: 24px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Cards Grid */
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card h3 {
+    color: var(--primary-color);
+    margin-bottom: 15px;
+}
+
+/* Charts Container */
+.charts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.chart-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Tables */
+.table-container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+th {
+    background-color: #f8f9fa;
+    color: var(--primary-color);
+}
+
+/* Buttons */
+.btn {
+    padding: 8px 15px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-view {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.btn-edit {
+    background: #ffc107;
+    color: #000;
+}
+
+.btn-delete {
+    background: #dc3545;
+    color: white;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    max-width: 500px;
+    width: 90%;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 70px;
+        padding: 10px;
+    }
+
+    .sidebar .logo {
+        padding: 10px 0;
+    }
+
+    .sidebar nav ul li a span {
+        display: none;
+    }
+
+    .main-content {
+        margin-left: 70px;
+    }
+
+    .charts-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+
+
+# Explicação gerada para: admin.js
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/frontend/login.html';
+        return;
+    }
+});
+
+function showConsultantForm() {
+    const modalHtml = `
+        <div class="modal" id="consultant-modal">
+            <div class="modal-content">
+                <h2>Novo Consultor</h2>
+                <form id="consultant-form">
+                    <div class="form-group">
+                        <label>Nome:</label>
+                        <input type="text" name="nome" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" name="email" 
+                               pattern=".*@consult\\.admin$"
+                               placeholder="exemplo@consult.admin"
+                               title="O email deve terminar com @consult.admin"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Senha:</label>
+                        <input type="password" name="senha" minlength="6" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Especialidade:</label>
+                        <input type="text" name="especialidade" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Valor/Hora (R$):</label>
+                        <input type="number" name="valor_hora" step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>LinkedIn URL:</label>
+                        <input type="url" name="linkedin_url">
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Criar Consultor</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('consultant-modal')">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('consultant-form').addEventListener('submit', handleConsultantSubmit);
+}
+
+async function handleConsultantSubmit(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    
+    try {
+        const consultantData = {
+            name: formData.get('nome'),
+            email: formData.get('email'),
+            password: formData.get('senha'),
+            especialidade: formData.get('especialidade'),
+            valor_hora: Number(formData.get('valor_hora')),
+            linkedin_url: formData.get('linkedin_url')
+        };
+
+        if (!consultantData.email.endsWith('@consult.admin')) {
+            throw new Error('Email deve terminar com @consult.admin');
+        }
+
+        console.log('Dados a serem enviados:', consultantData);
+
+        const response = await fetch('http://localhost:3000/auth/consultants', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(consultantData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erro ao criar consultor');
+        }
+
+        alert('Consultor criado com sucesso!');
+        closeModal('consultant-modal');
+        
+    } catch (error) {
+        console.error('Erro:', error);
+        alert(error.message);
+    }
+}
+
+// Função para abrir modal de novo admin
+function showAdminForm() {
+    console.log('Abrindo modal de admin');
+    const modalHtml = `
+        <div class="modal" id="admin-modal">
+            <div class="modal-content">
+                <h2>Novo Administrador</h2>
+                <form id="admin-form">
+                    <div class="form-group">
+                        <label>Nome:</label>
+                        <input type="text" name="nome" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" name="email" 
+                               pattern=".*@admin\\.com$"
+                               placeholder="exemplo@admin.com"
+                               title="O email deve terminar com @admin.com"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Senha:</label>
+                        <input type="password" name="senha" minlength="6" required>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Criar Administrador</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('admin-modal')">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('admin-form').addEventListener('submit', handleAdminSubmit);
+}
+
+async function handleAdminSubmit(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    try {
+        const response = await fetch('http://localhost:3000/auth/admin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+                nome: formData.get('nome'),
+                email: formData.get('email'),
+                senha: formData.get('senha')
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Erro ao criar administrador');
+        }
+
+        alert('Administrador criado com sucesso!');
+        closeModal('admin-modal');
+    } catch (error) {
+        showError('Erro ao criar administrador: ' + error.message);
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.remove();
+    }
+}
+
+function showError(message) {
+    console.error(message);
+    alert(message);
+}
+
+
+
+# Explicação gerada para: agendar-consulta.html
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Agendar Consultoria</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+    <link rel="stylesheet" href="agendar.css">
+</head>
+<body>/
+
+    <div class="container">
+        <nav>
+            <div class="nav-links">
+                <img src="images/dextrategia_logo.png"Logo" class="logo">
+                <a href="http://localhost:3000/frontend/user-dashboard.html">Sobre nós</a>
+                <a href="http://localhost:3000/frontend/agendar-consulta.html">Agende sua consulta</a>  
+            </div>
+            <div class="nav-links">
+                <span id="welcome-message">Bem-vindo, Usuário!</span>
+                <a href="http://localhost:3000/frontend/index.html" id="logout">Sair</a>
+            </div>
+        </nav>
+    </div>
+    <div class="container">
+        <div class="calendar-section">
+            <h1 class="h1-animated">Selecione a Data e Hora</h1>
+            <div class="calendar-grid">
+                <input type="text" id="data" placeholder="Selecione a data">
+                <select id="hora">
+                    <option value="">Selecione o horário</option>
+                    <option value="09:00">09:00</option>
+                    <option value="10:00">10:00</option>
+                    <option value="11:00">11:00</option>
+                    <option value="14:00">14:00</option>
+                    <option value="15:00">15:00</option>
+                    <option value="16:00">16:00</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <form id="agendamentoForm">
+                <div class="form-grid">
+                    <input type="text" id="nome" name="nome" placeholder="Nome Completo" required>
+                    <input type="email" id="email" name="email" placeholder="Email" required>
+            
+                    <select id="tipo_servico" name="tipo_servico" required>
+                        <option value="">Tipo de Serviço</option>
+                        <option value="individual">Consultoria Individual</option>
+                        <option value="pack-starter">Pack Starter - 5h - €225</option>
+                        <option value="pack-business">Pack Business - 10h - €450</option>
+                        <option value="pack-enterprise">Pack Enterprise - 20h - €800</option>
+                        <option value="pack-premium">Pack Premium - 30h - €1200</option>
+                    </select>
+            
+                    <select id="consultor" name="consultor" required>
+                        <option value="">Selecione o Consultor</option>
+                    </select>
+            
+                    <select id="tipo_reuniao" name="tipo_reuniao" required>
+                        <option value="">Tipo de Reunião</option>
+                        <option value="presencial">Presencial</option>
+                        <option value="online">Online</option>
+                    </select>
+            
+            
+                    <textarea id="descricao" name="descricao" placeholder="Descrição da Consultoria" required></textarea>
+                </div>
+                <button type="submit">Continuar para Pagamento</button>
+            </form>
+            
+        </div>
+
+        <div class="consultores-carousel">
+            <button class="carousel-btn prev">❮</button>
+            <div class="consultores-wrapper">
+                <!-- Cards dos consultores serão inseridos aqui via JavaScript -->
+            </div>
+            <button class="carousel-btn next">❯</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+   <script src="agendar.js"></script>
+</html>
+
+
+
+# Explicação gerada para: agendar.css
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto;
+}
+
+body {
+    background: url('images/background.png') no-repeat center center fixed;
+      background-size: cover;
+      color: #6B7280;
+      font-weight: 300;
+
+  }
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    margin-top: 1.3rem;
+    padding: 0 1rem;
+}
+
+nav {
+    background-color: #EBF5FF;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 9999px;
+    padding: 0.5rem 1rem;
+    margin:0,5rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.nav-links {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.nav-links a {
+    color: #7caff1;
+    text-decoration: none;
+    transition: color 0.3s;
+    white-space: nowrap;
+}
+
+.nav-links a:hover {
+    color: #60A5FA;
+    border-bottom: 2px solid #60A5FA;
+}
+
+.logo {
+    width: 100px;
+    height: 32px;
+    margin-right: 0.75rem;
+}
+.h1-animated {
+    font-size: 2.25rem;
+    font-weight: bold;
+    color: #60A5FA;
+    margin-bottom: 1.2rem;
+    animation: fadeIn 1s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.calendar-section, .form-section {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.calendar-section h2 {
+    color: #2563eb;
+    margin-bottom: 1.5rem;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+textarea {
+    grid-column: span 2;
+    resize: vertical;
+    min-height: 100px;
+}
+
+button {
+    background: linear-gradient(135deg, #f1f2f6 0%, #60a5fa 100%);
+    color: white;
+    padding: 1rem;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.consultores-carousel {
+    position: relative;
+    margin: 2rem 0;
+    padding: 0 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: linear-gradient(135deg, #f1f2f6 0%, #60a5fa 100%);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 2;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center
+}
+
+.prev { left: 1rem; }
+.next { right: 1rem; }
+
+.consultores-wrapper {
+    display: flex;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    gap: 1.5rem;
+    padding: 2rem;
+}
+
+.consultor-card {
+    flex: 0 0 300px;
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5e7eb;
+}
+
+.consultor-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.consultor-img {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.consultor-info h3 {
+    margin: 0;
+    color: #1f2937;
+}
+
+.consultor-especialidade {
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+.consultor-valor {
+    color: #5a89ed;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.consultor-descricao {
+    margin: 1rem 0;
+    color: #4b5563;
+    line-height: 1.5;
+    min-height: 100px; /* Altura mínima fixa */
+    overflow: hidden;
+}
+
+.consultor-skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.skill-tag {
+    background-color: #e5e7eb;
+    color: #374151;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+}
+
+.consultor-packs {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    min-height: 120px; /* Altura mínima fixa */
+}
+
+.pack-info {
+    margin: 0.5rem 0;
+    color: #7ca1ef;
+    font-weight: 500;
+}
+
+.linkedin-btn {
+    color: #2563eb;
+    text-decoration: none;
+    display: inline-block;
+    margin-top: 1rem;
+}
+
+.linkedin-btn:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .calendar-grid, .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    textarea {
+        grid-column: span 1;
+    }
+    
+    .consultor-card {
+        flex: 0 0 100%;
+    }
+}
+
+
+
+# Explicação gerada para: agendar.js
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+
+
+
+const consultores = [
+    {
+        nome: "Carla Medeiros",
+        especialidade: "Marketing Digital",
+        valor: 45,
+        imagem: "https://img.freepik.com/fotos-gratis/mulher-de-tiro-medio-posando-no-escritorio_23-2149392072.jpg?ga=GA1.1.1144895126.1737632696&semt=ais_hybrid",
+        descricao: "Especialista em marketing digital com mais de 10 anos de experiência. Foco em estratégias de crescimento, SEO, marketing de conteúdo e mídia social.",
+        skills: ["SEO", "Google Ads", "Social Media", "Content Marketing"],
+        packs: {
+            starter: { horas: 5, valor: 200 },
+            business: { horas: 10, valor: 400 },
+            enterprise: { horas: 20, valor: 750 }
+        }
+    },
+    {
+        nome: "Ricardo Almeida",
+        especialidade: "Gestão Financeira",
+        valor: 60,
+        imagem: "https://img.freepik.com/fotos-gratis/designer-trabalhando-no-modelo-3d_23-2149371896.jpg?ga=GA1.1.1144895126.1737632696&semt=ais_hybrid",
+        descricao: "Consultor financeiro com MBA em Finanças e 15 anos de experiência no mercado. Especializado em planejamento financeiro e análise de investimentos.",
+        skills: ["Análise Financeira", "Investimentos", "Gestão de Riscos", "Valuation"],
+        packs: {
+            starter: { horas: 5, valor: 275 },
+            business: { horas: 10, valor: 500 },
+            enterprise: { horas: 20, valor: 900 }
+        }
+    },
+    {
+        nome: "Fernanda Costa",
+        especialidade: "RH e Processos",
+        valor: 55,
+        imagem: "https://img.freepik.com/fotos-gratis/mulher-sorrindo-sentado-no-cafe-com-portatil-fechado_1262-1151.jpg?ga=GA1.1.1144895126.1737632696&semt=ais_hybrid",
+        descricao: "Especialista em Recursos Humanos com Mestrado em Gestão de Pessoas. Experiência em implementação de programas de desenvolvimento.",
+        skills: ["Gestão de Pessoas", "Cultura Organizacional", "Desenvolvimento", "Processos"],
+        packs: {
+            starter: { horas: 5, valor: 250 },
+            business: { horas: 10, valor: 450 },
+            enterprise: { horas: 20, valor: 800 }
+        }
+    },
+    {
+        nome: "João Silva",
+        especialidade: "Estratégia Digital",
+        valor: 65,
+        imagem: "https://img.freepik.com/fotos-gratis/retrato-do-homem-de-negocios-feliz-com-tabuleta-digital_1262-12831.jpg?ga=GA1.1.1144895126.1737632696&semt=ais_hybrid",
+        descricao: "Especialista em transformação digital e inovação. Experiência em startups e grandes empresas, com foco em crescimento escalável.",
+        skills: ["Transformação Digital", "Inovação", "Growth", "Estratégia"],
+        packs: {
+            starter: { horas: 5, valor: 300 },
+            business: { horas: 10, valor: 550 },
+            enterprise: { horas: 20, valor: 1000 }
+        }
+    }
+];
+
+// Inicializa o Flatpickr
+flatpickr("#data", {
+    enableTime: false,
+    dateFormat: "d/m/y",
+    minDate: "today",
+    disable: [
+        function(date) {
+            return (date.getDay() === 0 || date.getDay() === 6);
+        }
+    ],
+    locale: {
+        firstDayOfWeek: 1
+    }
+});
+
+// Carousel Navigation
+const wrapper = document.querySelector('.consultores-wrapper');
+const prevBtn = document.querySelector('.prev');
+const nextBtn = document.querySelector('.next');
+
+prevBtn.addEventListener('click', () => {
+    wrapper.scrollBy({ left: -320, behavior: 'smooth' });
+});
+
+nextBtn.addEventListener('click', () => {
+    wrapper.scrollBy({ left: 320, behavior: 'smooth' });
+});
+
+// Populate consultants
+consultores.forEach(consultor => {
+    const card = document.createElement('div');
+    card.className = 'consultor-card';
+    card.innerHTML = `
+        <div class="consultor-header">
+            <img src="${consultor.imagem}" alt="${consultor.nome}" class="consultor-img">
+            <div>
+                <h3>${consultor.nome}</h3>
+                <p class="consultor-especialidade">${consultor.especialidade}</p>
+            </div>
+        </div>
+        <p class="consultor-valor">€${consultor.valor}/hora</p>
+        <p class="consultor-descricao">${consultor.descricao}</p>
+        <div class="consultor-skills">
+            ${consultor.skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
+        </div>
+        <div class="consultor-packs">
+            <p class="pack-info">Pack Starter: ${consultor.packs.starter.horas}h - €${consultor.packs.starter.valor}</p>
+            <p class="pack-info">Pack Business: ${consultor.packs.business.horas}h - €${consultor.packs.business.valor}</p>
+            <p class="pack-info">Pack Enterprise: ${consultor.packs.enterprise.horas}h - €${consultor.packs.enterprise.valor}</p>
+        </div>
+        <a href="https://linkedin.com/in/${consultor.nome.toLowerCase().replace(' ', '')}" target="_blank" class="linkedin-btn">
+            Ver perfil no LinkedIn
+        </a>
+    `;
+    wrapper.appendChild(card);
+});
+
+// Update consultant select based on service type
+const tipoServicoSelect = document.getElementById('tipo_servico');
+const consultorSelect = document.getElementById('consultor');
+
+tipoServicoSelect.addEventListener('change', () => {
+    consultorSelect.innerHTML = '<option value="">Selecione o Consultor</option>';
+    
+    if (tipoServicoSelect.value) {
+        consultores.forEach(consultor => {
+            const option = document.createElement('option');
+            option.value = consultor.nome.toLowerCase().replace(' ', '');
+            option.textContent = `${consultor.nome} - ${consultor.especialidade}`;
+            consultorSelect.appendChild(option);
+        });
+    }
+});
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('agendamentoForm');
+    if (!form) return;
+
+    const servicos = {
+        'pack-starter': 225,
+        'pack-business': 450,
+        'pack-enterprise': 800,
+        'pack-premium': 1200,
+        'individual': 100
+    };
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const servicoSelecionado = document.getElementById('tipo_servico').selectedOptions[0];
+        
+        const bookingDetails = {
+            nome: document.getElementById('nome').value,
+            email: document.getElementById('email').value,
+            servico: servicoSelecionado.textContent,
+            valorTotal: servicos[servicoSelecionado.value],
+            consultor: document.getElementById('consultor').selectedOptions[0].textContent,
+            data: document.getElementById('data').value,
+            hora: document.getElementById('hora').value
+        };
+        
+        localStorage.setItem('bookingDetails', JSON.stringify(bookingDetails));
+        window.location.href = 'pagamentos.html';
+    });
+});
+
+
+
+
+# Explicação gerada para: confirmacao.html
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmação de Pagamento</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding-top: 50px;
+            background-image: url('images/background.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            height: 100vh;
+            margin: 0;
+        }
+        
+        .icon {
+            font-size: 80px;
+            color: green;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="icon">&#10004;</div>
+    <h1>Pagamento Confirmado!</h1>
+    <p>Obrigado por sua compra.</p>
+    <p>Você receberá um email com a confirmação do dia e hora da sua compra, junto com o recibo de pagamento.</p>
+    <p>Caso tenha alguma dúvida, entre em contato conosco.</p>
+</body>
+</html>
+
+
+
+# Explicação gerada para: consultant-dashboard.html
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard do Consultor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+    background: url('images/background.png') no-repeat center center fixed;
+      background-size: cover;
+      color: #6B7280;
+      font-weight: 300;
+
+  }
+
+        h2 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            color: #60a5fa;
+        }
+
+        nav {
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        nav .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        nav .content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 4rem;
+        }
+
+        nav .logo {
+            display: flex;
+            align-items: center;
+        }
+
+        nav .logo img {
+            height: 2rem;
+            margin-right: 1rem;
+        }
+
+        nav .user {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        nav .logout {
+            background-color: #ef4444;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s;
+        }
+
+        nav .logout:hover {
+            background-color: #dc2626;
+        }
+
+        main {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .profile .grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .availability .calendar {
+            margin-bottom: 1.5rem;
+        }
+
+        .availability .slots {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .availability .slot label {
+            display: block;
+            padding: 1rem;
+            background-color: #f3f4f6;
+            border-radius: 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.125rem;
+            font-weight: 500;
+        }
+
+        .availability .slot input[type="checkbox"] {
+            display: none;
+        }
+
+        .availability .slot input[type="checkbox"]:checked + label {
+            background-color: #60a5fa;
+            color: white;
+        }
+
+        .availability .actions {
+            text-align: right;
+        }
+
+        .availability .save-button {
+            background-color: #60a5fa;
+            color: white;
+            padding: 0.625rem 1.5rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+        }
+
+        .availability .save-button:hover {
+            background-color: #3b82f6;
+        }
+
+        .appointments .appointment {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: box-shadow 0.2s;
+        }
+
+        .appointments .appointment:hover {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .appointments .appointment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .appointments .client-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .appointments .appointment-info {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .appointments .appointment-format {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .appointments .format-online {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .appointments .format-presential {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .appointments .appointment-title {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .appointments .appointment-description {
+            color: #4b5563;
+        }
+
+        .documents .dropzone {
+            border: 2px dashed #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.2s;
+            margin-bottom: 1rem;
+        }
+
+        .documents .dropzone.dragover {
+            background-color: #f9fafb;
+            border-color: #2563eb;
+        }
+
+        .documents .select-button {
+            background-color: #60a5fa;
+            color: white;
+            padding: 0.625rem 1.5rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+        }
+
+        .documents .select-button:hover {
+            background-color: #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <div class="content">
+                <div class="logo">
+                    <img src="images/dextrategia_logo.png" alt="Logo">
+                    <span>Dashboard do Consultor</span>
+                </div>
+                <div class="user">
+                    <span id="consultant-name">João Silva</span>
+                    
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="card profile">
+            <h2 id="consultant-full-name">João Silva</h2>
+            <div class="grid">
+                <div>
+                    <span>Especialidade</span>
+                    <p id="consultant-specialty">Marketing Digital</p>
+                </div>
+                <div>
+                    <span>Valor/Hora</span>
+                    <p id="consultant-rate">R$ 100/hora</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card availability">
+            <h2>Disponibilidade</h2>
+            <div id="calendar" class="calendar"></div>
+            <div class="slots">
+                <div class="slot">
+                    <input type="checkbox" id="slot-09" name="time-slot" value="09:00">
+                    <label for="slot-09">09:00</label>
+                </div>
+                <div class="slot">
+                    <input type="checkbox" id="slot-10" name="time-slot" value="10:00">
+                    <label for="slot-10">10:00</label>
+                </div>
+                <div class="slot">
+                    <input type="checkbox" id="slot-11" name="time-slot" value="11:00">
+                    <label for="slot-11">11:00</label>
+                </div>
+                <div class="slot">
+                    <input type="checkbox" id="slot-14" name="time-slot" value="14:00">
+                    <label for="slot-14">14:00</label>
+                </div>
+                <div class="slot">
+                    <input type="checkbox" id="slot-15" name="time-slot" value="15:00">
+                    <label for="slot-15">15:00</label>
+                </div>
+                <div class="slot">
+                    <input type="checkbox" id="slot-16" name="time-slot" value="16:00">
+                    <label for="slot-16">16:00</label>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="save-button">Salvar Disponibilidade</button>
+            </div>
+        </div>
+
+        <div class="card appointments">
+            <h2>Meus Agendamentos</h2>
+            <div id="appointments-list">
+                <div class="appointment">
+                    <div class="appointment-header">
+                        <div>
+                            <h3 class="client-name">Empresa XYZ</h3>
+                            <p class="appointment-info">25/01/2025 - 14:00</p>
+                        </div>
+                        <span class="appointment-format format-online">Online</span>
+                    </div>
+                    <h4 class="appointment-title">Consultoria em Marketing Digital</h4>
+                    <p class="appointment-description">Análise da estratégia atual e sugestões de melhorias.</p>
+                </div>
+                <div class="appointment">
+                    <div class="appointment-header">
+                        <div>
+                            <h3 class="client-name">Startup ABC</h3>
+                            <p class="appointment-info">27/01/2025 - 16:00</p>  
+                        </div>
+                        <span class="appointment-format format-presential">Presencial</span>
+                    </div>
+                    <h4 class="appointment-title">Workshop de Mídias Sociais</h4>
+                    <p class="appointment-description">Treinamento para a equipe interna.</p>
+                </div>
+            </div>  
+        </div>
+
+        <div class="card documents">
+            <h2>Documentos</h2>
+            <div id="dropzone" class="dropzone">
+                <p>Arraste arquivos aqui ou</p>
+                <button class="select-button" onclick="document.getElementById('file-input').click()">Selecionar Arquivos</button>
+                <input type="file" id="file-input" multiple hidden>
+            </div>
+            <div id="documents-list">
+                <!-- Lista de documentos será inserida aqui -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/frontend/login.html';
+                return;
+            }
+
+            flatpickr("#calendar", {
+                inline: true,
+                mode: "multiple",
+                dateFormat: "Y-m-d",
+                onChange: function(selectedDates) {
+                    console.log('Datas selecionadas:', selectedDates);
+                }
+            });
+
+            const dropzone = document.getElementById('dropzone');
+            
+            dropzone.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dragover');
+            });
+
+            dropzone.addEventListener('drop', (event) => {
+                event.preventDefault();
+                dropzone.classList.remove('dragover');
+                const files = Array.from(event.dataTransfer.files);
+                handleFiles(files);
+            });
+
+            loadConsultantInfo();
+            loadAppointments();
+        });
+
+        async function loadConsultantInfo() {
+            try {
+                const response = await fetch('http://localhost:3000/api/consultant/info', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    
+                }
+                
+                const consultant = await response.json();
+                document.getElementById('consultant-full-name').textContent = consultant.name;
+                document.getElementById('consultant-specialty').textContent = consultant.especialidade;
+                document.getElementById('consultant-rate').textContent = `R$ ${consultant.valor_hora}/hora`;
+            } catch (error) {
+                console.error('Erro:', error);
+                
+            }
+        }
+
+        async function loadAppointments() {
+            try {
+                const response = await fetch('http://localhost:3000/api/consultant/appointments', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    
+                }
+                
+                const appointments = await response.json();
+                const appointmentsList = document.getElementById('appointments-list');
+                appointmentsList.innerHTML = appointments.map(appointment => `
+                    <div class="appointment">
+                        <div class="appointment-header">
+                            <div>
+                                <h3 class="client-name">${appointment.client_name}</h3>
+                                <p class="appointment-info">
+                                    ${new Date(appointment.date).toLocaleDateString()} - ${appointment.time}
+                                </p>
+                            </div>
+                            <span class="appointment-format ${appointment.format === 'Online' ? 'format-online' : 'format-presential'}">
+                                ${appointment.format}
+                            </span>
+                        </div>
+                        <h4 class="appointment-title">Título: ${appointment.title}</h4>
+                        <p class="appointment-description">Descrição: ${appointment.description}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Erro:', error);
+                
+            }
+        }
+
+        function handleFiles(files) {
+            console.log('Arquivos para upload:', files);
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/frontend/login.html';
+        }
+    </script>
+</body>
+</html>
+
+
+
+# Explicação gerada para: email-template.html
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmação de Agendamento</title>
+  <style>
+    /* Estilos básicos do email */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .email-wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #3B82F6;
+      margin-bottom: 20px;
+    }
+    p {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+    <h1>Confirmação de Agendamento</h1>
+    <p>Olá {nomeCliente},</p>
+    <p>Seu agendamento foi confirmado:</p>
+    <ul>
+      <li>Serviço: {servico}</li>
+      <li>Data e Hora: {dataHora}</li>
+      <li>Valor Total: {valorTotal}</li>
+    </ul>
+    <p>Agradecemos sua preferência.</p>
+    <p>Equipe de Consultoria</p>
+  </div>
+</body>
+</html>
+
+
+
+# Explicação gerada para: index.html
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dextratégia - Gestão Inteligente</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(to bottom, #e6f2ff, white);
+            color: #333;
+        }
+
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .animate-fade-in {
+            animation: fade-in 2s ease-in-out forwards;
+        }
+
+        /* Navbar Styles */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background-color: rgba(191, 219, 254, 0.7);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .navbar-logo {
+            width: 130px;
+            height: 40px;
+        }
+
+        .navbar-title {
+            text-align: center;
+            color: #8e9198;
+            font-size: 1.0rem;
+            transition: color 0.3s ease;
+        }
+
+        .navbar-title:hover {
+            color: #3b82f6;
+        }
+
+        .navbar-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 30px;
+            text-decoration: none;
+            color: #6b7280;
+            background: linear-gradient(to right, #bfdbfe, white);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: linear-gradient(to right, #93c5fd, white);
+            transform: scale(1.05);
+        }
+
+        /* Hero Section Styles */
+        .hero {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .hero-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            padding: 0 20px;
+            z-index: 10;
+        }
+
+        .hero-title {
+            font-size: 2.1rem;
+            font-weight: 800;
+            color: #60a5fa;
+            margin-bottom: 20px;
+            opacity: 0;
+            animation: fade-in 2s ease-in-out forwards;
+        }
+
+        .hero-subtitle {
+            font-size: 1.2rem;
+            color: #60a5fa;
+            margin-bottom: 30px;
+            opacity: 0;
+            animation: fade-in 2s ease-in-out 0.5s forwards;
+        }
+
+        /* Form Styles */
+        .form-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 50px;
+        }
+
+        .form-box {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 123, 255, 0.1);
+            padding: 30px;
+            width: 350px;
+        }
+
+        .form-box h2 {
+            text-align: center;
+            color: #007bff;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #6b7280;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #007bff, #00c6ff);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            background: linear-gradient(135deg, #0056b3, #007bff);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div>
+            <img src="images/dextrategia_logo.png" alt="Logo" class="navbar-logo">
+        </div>
+        <div class="navbar-title">
+            <p>Book your Appointment</p>
+        </div>
+        <div class="navbar-actions">
+            <a href="#" class="btn toggle-form" data-form="login">Login</a>
+            <a href="#" class="btn toggle-form" data-form="register">Register</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <video autoplay loop muted playsinline class="hero-video">
+          <source src="videos/video.mp4" type="video/mp4">
+            Seu navegador não suporta vídeos HTML5.
+        </video>
+
+        <div class="hero-content">
+            <h1 class="hero-title animate-fade-in">
+                Simplifique sua Gestão com Dextratégia
+            </h1>
+
+            <p class="hero-subtitle animate-fade-in">
+                Transforme sua gestão e impulsione seu sucesso com inovação e inteligência
+            </p>
+            <!-- Form Container -->
+            <div class="form-container">
+                <!-- Login Form -->
+                <div id="login-form" class="form-box">
+                    <h2>Login</h2>
+                    <form>
+                        <div class="input-group">
+                            <label for="login-email">Email</label>
+                            <input type="email" id="login-email" name="email" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="login-password">Senha</label>
+                            <input type="password" id="login-password" name="password" required>
+                        </div>
+                        <button type="submit" class="submit-btn">Entrar</button>
+                    </form>
+                </div>
+
+                <!-- Register Form -->
+                <div id="register-form" class="form-box" style="display: none;">
+                    <h2>Registrar</h2>
+                    <form>
+                        <div class="input-group">
+                            <label for="register-name">Nome</label>
+                            <input type="text" id="register-name" name="name" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="register-email">Email</label>
+                            <input type="email" id="register-email" name="email" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="register-password">Senha</label>
+                            <input type="password" id="register-password" name="password" required>
+                        </div>
+                        <button type="submit" class="submit-btn">Registrar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+
+
+# Explicação gerada para: pagamentos.css
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding-top: 50px;
+    background-image: url('images/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    height: 100vh;
+    margin: 0;
+}
+.payment-container {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 500px;
+    margin: 100px auto;
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+.payment-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background: linear-gradient(to right, #3B82F6, #2563EB);
+}
+
+.payment-title {
+    text-align: center;
+    color: #1D4ED8;
+    margin-bottom: 2rem;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.payment-methods {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.payment-method {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.payment-method:hover {
+    border-color: #3B82F6;
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.payment-method.active {
+    border-color: #3B82F6;
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.payment-method-icon {
+    width: 40px;
+    height: 40px;
+    margin-right: 1rem;
+    filter: grayscale(100%);
+    transition: filter 0.3s ease;
+}
+
+.payment-method:hover .payment-method-icon,
+.payment-method.active .payment-method-icon {
+    filter: grayscale(0);
+}
+
+.payment-method-details {
+    flex-grow: 1;
+}
+
+.payment-method-name {
+    font-weight: 600;
+    color: #1F2937;
+    margin-bottom: 0.25rem;
+}
+
+.payment-method-description {
+    color: #6B7280;
+    font-size: 0.8rem;
+}
+
+.payment-method-select {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #D1D5DB;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.payment-method.active .payment-method-select {
+    border-color: #3B82F6;
+    background-color: #3B82F6;
+    position: relative;
+}
+
+.payment-method.active .payment-method-select::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 0.8rem;
+}
+
+.hidden {
+    display: none;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #1D4ED8;
+    font-weight: 600;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+    border-color: #3B82F6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    outline: none;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.payment-summary {
+    background: #F3F4F6;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    color: #1F2937;
+}
+
+.summary-item span:first-child {
+    font-weight: 600;
+}
+
+.btn-payment {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(to right, #3B82F6, #2563EB);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.4s ease;
+}
+
+.btn-payment:hover {
+    background: linear-gradient(to right, #2563EB, #1E40AF);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+
+
+# Explicação gerada para: pagamentos.html
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Pagamento - Consultoria Empresarial</title>
+ 
+   <link rel="stylesheet" href="pagamentos.css">
+</head>
+<body>
+
+
+   <div class="payment-container">
+       <h2 class="payment-title">Escolher Método de Pagamento</h2>
+       
+       <div class="payment-methods">
+           <div class="payment-method" data-method="mbway">
+               <img src="https://images.seeklogo.com/logo-png/38/2/mbway-logo-png_seeklogo-389533.png" alt="MBWay" class="payment-method-icon">
+               <div class="payment-method-details">
+                   <div class="payment-method-name">MBWay</div>
+                   <div class="payment-method-description">Pagamento instantâneo via telemóvel</div>
+               </div>
+               <div class="payment-method-select"></div>
+           </div>
+
+           <div class="payment-method" data-method="cartao">
+               <img src="https://cdn-icons-png.flaticon.com/512/2695/2695969.png" alt="Cartão" class="payment-method-icon">
+               <div class="payment-method-details">
+                   <div class="payment-method-name">Cartão</div>
+                   <div class="payment-method-description">Crédito ou débito</div>
+               </div>
+               <div class="payment-method-select"></div>
+           </div>
+
+           <div class="payment-method" data-method="paypal">
+               <img src="https://logodownload.org/wp-content/uploads/2014/10/paypal-logo-0.png" alt="PayPal" class="payment-method-icon">
+               <div class="payment-method-details">
+                   <div class="payment-method-name">PayPal</div>
+                   <div class="payment-method-description">Pagamento online seguro</div>
+               </div>
+               <div class="payment-method-select"></div>
+           </div>
+       </div>
+
+       <form id="payment-form" >
+           <div id="mbway-form" class="payment-form">
+               <div class="form-group">
+                   <label for="mbway-phone">Número de Telemóvel</label>
+                   <input type="text" id="mbway-phone" name="mbway-phone" placeholder="912345678" >
+               </div>
+           </div>
+
+           <div id="cartao-form" class="payment-form">
+               <div class="form-group">
+                   <label for="">Número do Cartão</label>
+                   <input type="text" id="card-number" name="card-number" placeholder="1234 5678 9012 3456" >
+               </div>
+               <div class="form-group">
+                   <label for="card-name">Nome no Cartão</label>
+                   <input type="text" id="card-name" name="card-name" placeholder="João Silva" >
+               </div>
+               <div class="grid-2">
+                   <div class="form-group">
+                       <label for="card-expiry">Validade</label>
+                       <input type="text" id="card-expiry" name="card-expiry" placeholder="MM/AA" >
+                   </div>
+                   <div class="form-group">
+                       <label for="card-cvc">CVV</label>
+                       <input type="text" id="card-cvv" name="card-cvv" placeholder="123" >
+                   </div>
+               </div>
+           </div>
+
+           <div id="paypal-form" class="payment-form" >
+               <div class="form-group">
+                   <label for="paypal-email">E-mail PayPal</label>
+                   <input type="email" id="paypal-email" name="paypal-email" placeholder="seu-email@exemplo.com" >
+               </div>
+           </div>
+
+           <div class="payment-summary">
+            <div class="summary-item">
+                <span>Serviço:</span>
+                <span id="service-name"></span>
+            </div>
+            <div class="summary-item">
+                <span>Valor Total:</span>
+                <span id="total-value"></span>
+            </div>
+        </div>
+        
+
+           <button type="submit" class="btn-payment">Confirmar Pagamento</button>
+       </form>
+   </div>
+
+   <script src="pagamentos.js"></script>
+</body>
+</html>
+
+
+
+# Explicação gerada para: pagamentos.js
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    const bookingDetails = JSON.parse(localStorage.getItem('bookingDetails') || '{}');
+    const paymentMethods = document.querySelectorAll('.payment-method');
+    const mainForm = document.getElementById('payment-form');
+
+    // Inicialmente esconder o formulário principal
+    if (mainForm) mainForm.classList.add('hidden');
+    
+    // Esconder todos os formulários de pagamento
+    document.querySelectorAll('.payment-form').forEach(form => {
+        form.style.display = 'none';
+    });
+    if (bookingDetails.servico) {
+        document.getElementById('service-name').textContent = bookingDetails.servico;
+    }
+    
+    if (bookingDetails.valorTotal) {
+        document.getElementById('total-value').textContent = `€${bookingDetails.valorTotal.toFixed(2).replace('.', ',')}`;
+    }
+ 
+    if (bookingDetails.nomeCliente) {
+        document.getElementById('card-name').value = bookingDetails.nomeCliente;
+    }
+    
+    if (bookingDetails.emailCliente) {
+        document.getElementById('paypal-email').value = bookingDetails.emailCliente;
+        document.getElementById('card-name').value = bookingDetails.nomeCliente;
+    }
+ 
+    
+    // Event listeners para métodos de pagamento
+    paymentMethods.forEach(method => {
+        method.addEventListener('click', () => {
+            paymentMethods.forEach(m => {
+                m.classList.remove('active');
+                const selectElement = m.querySelector('.payment-method-select');
+                if (selectElement) selectElement.innerHTML = '';
+            });
+    
+            document.querySelectorAll('.payment-form').forEach(form => {
+                form.style.display = 'none';
+            });
+    
+            method.classList.add('active');
+            const selectElement = method.querySelector('.payment-method-select');
+            if (selectElement) selectElement.innerHTML = '✓';
+    
+            const selectedMethod = method.dataset.method;
+            const selectedForm = document.getElementById(`${selectedMethod}-form`);
+            if (selectedForm) {
+                selectedForm.style.display = 'block';
+                mainForm.classList.remove('hidden');
+            }
+        });
+    });
+
+    // Set MBWAY como default
+    const mbwayMethod = document.querySelector('[data-method="mbway"]');
+    if (mbwayMethod) {
+        mbwayMethod.classList.add('active');
+        const selectElement = mbwayMethod.querySelector('.payment-method-select');
+        if (selectElement) selectElement.innerHTML = '✓';
+        const mbwayForm = document.getElementById('mbway-form');
+        if (mbwayForm) {
+            mbwayForm.style.display = 'block';
+            mainForm.classList.remove('hidden');
+        }
+    }
+
+    if (mainForm) {
+        mainForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const activeMethodElement = document.querySelector('.payment-method.active');
+            if (!activeMethodElement) return;
+            
+            const activeMethod = activeMethodElement.dataset.method;
+            let isValid = true;
+        
+            if (activeMethod === 'mbway') {
+                const mbwayPhone = document.getElementById('mbway-phone');
+                if (mbwayPhone && !mbwayPhone.value.trim()) {
+                    mbwayPhone.classList.add('error');
+                    isValid = false;
+                }
+                document.querySelectorAll('#card-form input, #paypal-form input').forEach(input => {
+                    input.classList.remove('error');
+                });
+            } else if (activeMethod === 'card') {
+                const cardInputs = document.querySelectorAll('#card-form input');
+                cardInputs.forEach(input => {
+                    if (!input.value.trim()) {
+                        input.classList.add('error');
+                        isValid = false;
+                    }
+                });
+                document.querySelectorAll('#mbway-form input, #paypal-form input').forEach(input => {
+                    input.classList.remove('error');
+                });
+            } else if (activeMethod === 'paypal') {
+                const paypalEmail = document.getElementById('paypal-email');
+                if (paypalEmail && !paypalEmail.value.trim()) {
+                    paypalEmail.classList.add('error');
+                    isValid = false;
+                }
+                document.querySelectorAll('#card-form input, #mbway-form input').forEach(input => {
+                    input.classList.remove('error');
+                });
+            }
+        
+            if (isValid) {
+                window.location.href = 'confirmacao.html';
+            } else {
+                alert('Por favor, preencha todos os campos corretamente.');
+            }
+        });
+    }
+
+    // Input masks
+    function maskInput(input, mask) {
+        if (!input) return;
+        
+        input.addEventListener('input', function() {
+            const cleanValue = this.value.replace(/\D/g, '');
+            let maskedValue = '';
+            let pos = 0;
+    
+            for (let i = 0; i < mask.length && pos < cleanValue.length; i++) {
+                if (mask[i] === 'X') {
+                    maskedValue += cleanValue[pos];
+                    pos++;
+                } else {
+                    maskedValue += mask[i];
+                }
+            }
+    
+            this.value = maskedValue;
+        });
+    }
+
+    maskInput(document.getElementById('mbway-phone'), 'XXX XXX XXX');
+    maskInput(document.getElementById('card-number'), 'XXXX XXXX XXXX XXXX');
+    maskInput(document.getElementById('card-expiry'), 'XX/XX');
+});
+
+
+
+# Explicação gerada para: script.js
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    const registerForm = document.getElementById('register-form');
+    const loginForm = document.getElementById('login-form');
+    const toggleButtons = document.querySelectorAll('.toggle-form');
+
+    // Alternar entre os formulários de login e registro
+    toggleButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const formType = button.dataset.form;
+
+            if (formType === 'login') {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+            } else if (formType === 'register') {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+            }
+        });
+    });
+
+    // Submeter o formulário de registro
+    registerForm.querySelector('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(registerForm.querySelector('form'));
+
+        try {
+            const response = await fetch('http://localhost:3000/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: formData.get('name'),
+                    email: formData.get('email'),
+                    password: formData.get('password')
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Registro realizado com sucesso!');
+                window.location.href = '/frontend/user-dashboard.html'; // Redirecionar para dashboard do usuário
+            } else {
+                alert(data.error || 'Erro ao registrar o usuário no banco de dados.');
+            }
+        } catch (error) {
+            alert('Erro de conexão com o servidor.');
+        }
+    });
+
+    // Submeter o formulário de login
+    loginForm.querySelector('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(loginForm.querySelector('form'));
+    
+        try {
+            const response = await fetch('http://localhost:3000/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: formData.get('email'),
+                    password: formData.get('password')
+                })
+            });
+    
+            const data = await response.json();
+    
+            if (response.ok) {
+                localStorage.setItem('token', data.token);
+    
+                // Ajustado o case para 'consultant'
+                switch (data.user_type) {
+                    case 'admin':
+                        window.location.href = '/frontend/admin-dashboard.html';
+                        break;
+                    case 'consultant': // Alterado de 'consult' para 'consultant'
+                        window.location.href = '/frontend/consultant-dashboard.html';
+                        break;
+                    default:
+                        window.location.href = '/frontend/user-dashboard.html';
+                }
+            } else {
+                alert(data.error || 'Erro ao fazer login.');
+            }
+        } catch (error) {
+            console.error('Erro detalhado:', error);
+            alert('Erro de conexão com o servidor.');
+        }
+    });
+});
+
+
+
+
+# Explicação gerada para: user-dashboard.html
+Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada para o seu código. 
+Se precisar, descreva funções, classes ou módulos.
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Consultoria Empresarial</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto;
+        }
+
+        body {
+          background: url('images/background.png') no-repeat center center fixed;
+            background-size: cover;
+            color: #6B7280;
+            font-weight: 300;
+
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        nav {
+            background-color: #EBF5FF;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 9999px;
+            padding: 0.5rem 1rem;
+            margin: 1rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #7caff1;
+            text-decoration: none;
+            transition: color 0.3s;
+            white-space: nowrap;
+        }
+
+        .nav-links a:hover {
+            color: #60A5FA;
+            border-bottom: 2px solid #60A5FA;
+        }
+
+        .logo {
+            width: 100px;
+            height: 32px;
+            margin-right: 0.75rem;
+        }
+
+        header {
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .h1-animated {
+            font-size: 2.25rem;
+            font-weight: bold;
+            color: #60A5FA;
+            margin-bottom: 1rem;
+            animation: fadeIn 1s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #sobre-nos {
+            background: linear-gradient(135deg, #EBF5FF 0%, #FFFFFF 100%);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            transition: all 0.5s;
+        }
+
+        #sobre-nos:hover {
+            transform: scale(1.02);
+            box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .feature-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .icon-box {
+            background-color: #DBEAFE;
+            color: #60A5FA;
+            padding: 0.75rem;
+            border-radius: 9999px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+        }
+
+        #consulta {
+            margin-top: 4rem;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            padding: 2rem;
+        }
+
+        .map-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        @media (min-width: 1024px) {
+            .map-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .contact-info {
+            background-color: #EBF5FF;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        footer {
+            margin-top: 2rem;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(to right, #DBEAFE, #FFFFFF);
+            color: #1E40AF;
+            text-decoration: none;
+            border-radius: 9999px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        .cta-button:hover {
+            background: linear-gradient(to right, #60A5FA, #FFFFFF);
+        }
+
+        p {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <div class="nav-links">
+                <img src="images/dextrategia_logo.png"Logo" class="logo">
+                <a href="http://localhost:3000/frontend/user-dashboard.html">Sobre nós</a>
+                <a href="http://localhost:3000/frontend/agendar-consulta.html">Agende sua consulta</a>  
+            </div>
+            <div class="nav-links">
+                <span>Bem-vindo, Usuário!</span>
+                <a href="http://localhost:3000/frontend/index.html" id="logout">Sair</a>
+            </div>
+        </nav>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1 class="h1-animated">Soluções de Consultoria Empresarial</h1>
+            <p>Transformando negócios com expertise personalizada</p>
+        </header>
+
+        <div id="sobre-nos">
+            <h2>Sobre Nós</h2>
+            <p>Acreditamos que a confiança é o pilar central de qualquer relação. Por isso, trabalhamos para que os nossos clientes se sintam à vontade na nossa presença e, ao mesmo tempo, completamente seguros e anónimos na nossa ausência.</p>
+            
+            <div class="feature-box">
+                <div class="icon-box">▼</div>
+                <div>
+                    <h3>A nossa equipa</h3>
+                    <p>A nossa equipa é composta por profissionais competentes, metódicos e organizados, que primam pela pontualidade, educação e ética no trabalho. A excelência é a nossa meta diária, e a inovação é o motor que impulsiona os nossos produtos e serviços.</p>
+                </div>
+            </div>
+
+            <div class="feature-box">
+                <div class="icon-box">+</div>
+                <div>
+                    <h3>O nosso compromisso</h3>
+                    <p>Comprometemo-nos com a formação contínua e a atualização constante das nossas competências, porque acreditamos que apenas assim podemos ser "os melhores dos melhores" no que fazemos.</p>
+                </div>
+            </div>
+
+            <div class="feature-box">
+                <div class="icon-box">↔</div>
+                <div>
+                    <h3>O nosso propósito</h3>
+                    <p>O nosso propósito é alinhar organizações para a criação de Valor Acrescentado através da implementação e assessoria em Gestão Estratégica e Gestão Emocional.</p>
+                </div>
+            </div>
+
+            <div class="feature-box">
+                <div class="icon-box">△</div>
+                <div>
+                    <h3>A nossa visão</h3>
+                    <p>Queremos ser reconhecidos como o "Key Player" em soluções de gestão estratégica, consolidando a nossa liderança em Portugal e nos PALOP (Países Africanos de Língua Oficial Portuguesa) e iniciando a nossa expansão para Espanha nos próximos 3 anos.</p>
+                </div>
+            </div>
+        </div>
+
+        <section id="consulta">
+            <h2 class="h1-animated">Nossa Localização</h2>
+            <div class="map-container">
+                <div style="height: 400px;">
+                    <iframe 
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2985.9569246436477!2d-8.4041546!3d41.5485299!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd24fee94a94c50b%3A0xab6e42b351f267a7!2sDextra%20Consulting-consultoria%20De%20Gest%C3%A3o%20Lda!5e0!3m2!1spt-BR!2ses!4v1733947522850!5m2!1spt-BR!2ses"
+                        width="100%" 
+                        height="100%" 
+                        style="border:0;" 
+                        allowfullscreen="" 
+                        loading="lazy">
+                    </iframe>
+                </div>
+                <div class="contact-info">
+                    <p><strong>DEXTRA Consulting – Consultoria de Gestão, Lda</strong><br>
+                    Portugal: Praça Padre Ricardo Rocha, N.º11 - 1º Dir., 4715-293 Braga</p>
+                    <p><strong>Contatos:</strong><br>
+                    Tlf: +351 253 635 014<br>
+                    Tlm.: +351 967 582 242<br>
+                    Email: geral@dextra.pt</p>
+                    <p><strong>Espanha:</strong><br>
+                    Rúa da Industria Nº 91, Polígono del CEAO, 27003 Lugo<br>
+                    Tlm.: +34 982 209 078<br>
+                    Email: geral@dextra.pt</p>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <a href="#consulta" class="cta-button">Agende sua Consultoria</a>
+        </footer>
+    </div>
+
+    <script>
+       
+            
+            // Add CSRF token if needed
+            const csrfToken = document.querySelector('meta[name="csrf-token"]');
+            if (csrfToken) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = '_token';
+                input.value = csrfToken.content;
+                form.appendChild(input);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+        });
+
+        // Add smooth scrolling to all links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loginForm.querySelector('form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(loginForm.querySelector('form'));
-
+    
         try {
             const response = await fetch('http://localhost:3000/auth/login', {
                 method: 'POST',
@@ -62,18 +62,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     password: formData.get('password')
                 })
             });
-
+    
             const data = await response.json();
-
+    
             if (response.ok) {
-                localStorage.setItem('token', data.token); // Salvar o token no localStorage
-
-                // Redirecionar com base no tipo de usuário
+                localStorage.setItem('token', data.token);
+    
+                // Ajustado o case para 'consultant'
                 switch (data.user_type) {
                     case 'admin':
                         window.location.href = '/frontend/admin-dashboard.html';
                         break;
-                    case 'consult':
+                    case 'consultant': // Alterado de 'consult' para 'consultant'
                         window.location.href = '/frontend/consultant-dashboard.html';
                         break;
                     default:
@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(data.error || 'Erro ao fazer login.');
             }
         } catch (error) {
+            console.error('Erro detalhado:', error);
             alert('Erro de conexão com o servidor.');
         }
     });

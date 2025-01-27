@@ -24,10 +24,185 @@ db.connect((err) => {
   console.log('Conectado ao banco de dados.');
 });
 
+
+
+
+
+
 // Middlewares
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
+
+
+// Middleware de autenticação
+const authenticateToken = (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (!token) return res.sendStatus(401);
+
+  jwt.verify(token, 'seu_secret_key', (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
+};
+
+app.get('/api/consultants', authenticateToken, (req, res) => {
+  db.query(
+      'SELECT id, name, email, especialidade, valor_hora, linkedin_url FROM consultants',
+      (err, results) => {
+          if (err) {
+              console.error('Erro ao listar consultores:', err);
+              return res.status(500).json({ error: 'Erro ao listar consultores' });
+          }
+          res.json(results);
+      }
+  );
+});
+
+// Rota para criar consultor
+app.post('/auth/consultants', async (req, res) => {
+  try {
+      const { name, email, password, especialidade, valor_hora, linkedin_url } = req.body;
+      
+      if (!email.endsWith('@consult.admin')) {
+          return res.status(400).json({ error: 'Email deve terminar com @consult.admin' });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Query simplificada sem user_id
+      db.query(
+          'INSERT INTO consultants (name, email, password, especialidade, valor_hora, linkedin_url) VALUES (?, ?, ?, ?, ?, ?)',
+          [name, email, hashedPassword, especialidade, valor_hora, linkedin_url],
+          (err, result) => {
+              if (err) {
+                  console.error('Erro ao criar consultor:', err);
+                  return res.status(500).json({ error: err.message });
+              }
+              res.status(201).json({ message: 'Consultor criado com sucesso' });
+          }
+      );
+  } catch (error) {
+      console.error('Erro ao criar consultor:', error);
+      res.status(500).json({ error: error.message });
+  }
+});
+
+
+
+
+// Rota PUT - Atualizar consultor
+app.put('/api/consultants/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { name, especialidade, valor_hora, linkedin_url, pacotes_horas, password } = req.body;
+
+  try {
+      let query = 'UPDATE consultants SET name = ?, especialidade = ?, valor_hora = ?, linkedin_url = ?, pacotes_horas = ?'; // Mudado de users para consultants
+      let params = [name, especialidade, valor_hora, linkedin_url, JSON.stringify(pacotes_horas)];
+
+      if (password) {
+          const hashedPassword = await bcrypt.hash(password, 10);
+          query += ', password = ?';
+          params.push(hashedPassword);
+      }
+
+      query += ' WHERE id = ?'; // Removido o filtro de user_type
+      params.push(id);
+
+      db.query(query, params, (err, result) => {
+          if (err) {
+              console.error('Erro ao atualizar consultor:', err);
+              return res.status(500).json({ error: 'Erro ao atualizar consultor' });
+          }
+          res.json({ message: 'Consultor atualizado com sucesso' });
+      });
+  } catch (error) {
+      console.error('Erro ao atualizar consultor:', error);
+      res.status(500).json({ error: 'Erro ao atualizar consultor' });
+  }
+});
+
+// Rota DELETE - Excluir consultor
+app.delete('/api/consultants/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  
+  db.query(
+      'DELETE FROM consultants WHERE id = ?', // Mudado de users para consultants e removido user_type
+      [id],
+      (err, result) => {
+          if (err) {
+              console.error('Erro ao excluir consultor:', err);
+              return res.status(500).json({ error: 'Erro ao excluir consultor' });
+          }
+          res.json({ message: 'Consultor excluído com sucesso' });
+      }
+  );
+});
+
+
+
+
+
+
+
+
+
+
+app.post('/api/admin/create', authenticateToken, async (req, res) => {
+    const { name, email, password } = req.body;
+
+    if (!email.endsWith('@admin.com')) {
+        return res.status(400).json({ error: 'Email deve terminar com @admin.com' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        db.query(
+            'INSERT INTO users (name, email, password, is_admin, user_type) VALUES (?, ?, ?, 1, "admin")',
+            [name, email, hashedPassword],
+            (err, result) => {
+                if (err) {
+                    console.error('Erro ao criar administrador:', err);
+                    return res.status(500).json({ error: 'Erro ao criar administrador' });
+                }
+                res.status(201).json({ 
+                    id: result.insertId,
+                    name,
+                    email
+                });
+            }
+        );
+    } catch (error) {
+        console.error('Erro ao criar administrador:', error);
+        res.status(500).json({ error: 'Erro ao criar administrador' });
+    }
+});
+
+app.get('/api/meetings/recent', authenticateToken, (req, res) => {
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    
+    db.query(
+        `SELECT p.*, u.name as consultant_name 
+         FROM payments p 
+         JOIN users u ON p.consultor = u.name 
+         WHERE p.data_consulta >= ?
+         ORDER BY p.data_consulta DESC`,
+        [fifteenDaysAgo.toISOString().split('T')[0]],
+        (err, results) => {
+            if (err) {
+                console.error('Erro ao listar reuniões:', err);
+                return res.status(500).json({ error: 'Erro ao listar reuniões' });
+            }
+            res.json(results);
+        }
+    );
+});
+
+
+
 
 
 app.get('/frontend/index.html', (req, res) => {
@@ -42,6 +217,7 @@ app.get('/frontend/admin-dashboard.html', (req, res) => {
 app.get('/frontend/admin.css', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/admin.css'));
 });
+
 app.get('/frontend/images/dextrategia_logo.png', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/images/dextrategia_logo.png'));
 });
@@ -75,22 +251,16 @@ app.get('/frontend/images/background.png', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/images/background.png'));
 });
 
+app.get('/frontend/consultant-dashboard.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/consultant-dashboard.html'));
+});
 
+app.get('/frontend/admin.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.sendFile(path.join(__dirname, '../frontend/admin.js'));
+});
+// Listar todos os consultores
 
-
-
-
-// Middleware de autenticação
-const authenticateToken = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
-  if (!token) return res.sendStatus(401);
-
-  jwt.verify(token, 'seu_secret_key', (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
-    next();
-  });
-};
 
 // Criar admin inicial
 const createInitialAdmin = async () => {
@@ -114,19 +284,41 @@ createInitialAdmin();
 app.post('/auth/login', async (req, res) => {
   const { email, password } = req.body;
   
+  // Primeiro tenta encontrar na tabela users
   db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
-    if (results.length === 0) return res.status(401).json({ error: 'Usuário não encontrado' });
+    
+    // Se não encontrou em users, procura em consultants
+    if (results.length === 0) {
+      db.query('SELECT * FROM consultants WHERE email = ?', [email], async (err, consultResults) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (consultResults.length === 0) return res.status(401).json({ error: 'Usuário não encontrado' });
 
+        const consultant = consultResults[0];
+        const validPassword = await bcrypt.compare(password, consultant.password);
+        if (!validPassword) return res.status(401).json({ error: 'Senha inválida' });
+
+        const token = jwt.sign(
+          { id: consultant.id, email: consultant.email, type: 'consultant' }, 
+          'seu_secret_key'
+        );
+        res.json({ token, user_type: 'consultant' });
+      });
+      return;
+    }
+
+    // Caso tenha encontrado em users, continua com a lógica existente
     const user = results[0];
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(401).json({ error: 'Senha inválida' });
 
-    const token = jwt.sign({ id: user.id, email: user.email, type: user.user_type }, 'seu_secret_key');
+    const token = jwt.sign(
+      { id: user.id, email: user.email, type: user.user_type }, 
+      'seu_secret_key'
+    );
     res.json({ token, user_type: user.user_type });
   });
 });
-
 // Registro de usuário
 app.post('/auth/register', async (req, res) => {
   const { name, email, password } = req.body;
