@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 
-
+const nodemailer = require('nodemailer');
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -261,6 +261,120 @@ app.get('/frontend/admin.js', (req, res) => {
 });
 // Listar todos os consultores
 
+
+// Configuração do nodemailer
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'estudosdeingrid@gmail.com', // Substitua pelo seu email
+        pass: 'ingrideff' // Use uma senha de aplicativo do Gmail
+    }
+});
+
+// Rota para criar agendamento
+app.post('/api/agendamentos', async (req, res) => {
+    const {
+        nome,
+        email,
+        tipo_servico,
+        consultor,
+        data_consulta,
+        hora_consulta,
+        tipo_reuniao,
+        descricao,
+        valor
+    } = req.body;
+
+    try {
+        const query = `
+            INSERT INTO agendamentos 
+            (nome, email, tipo_servico, consultor, data_consulta, 
+             hora_consulta, tipo_reuniao, descricao, valor) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        db.query(query, [
+            nome, email, tipo_servico, consultor, data_consulta,
+            hora_consulta, tipo_reuniao, descricao, valor
+        ], (err, result) => {
+            if (err) {
+                console.error('Erro ao salvar agendamento:', err);
+                return res.status(500).json({ error: 'Erro ao salvar agendamento' });
+            }
+            
+            res.json({ 
+                success: true, 
+                id: result.insertId,
+                message: 'Agendamento criado com sucesso'
+            });
+        });
+    } catch (error) {
+        console.error('Erro:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
+// Rota para processar pagamento e enviar email
+app.post('/api/processar-pagamento', async (req, res) => {
+    const { agendamentoId, formaPagamento } = req.body;
+
+    try {
+        // Atualiza o status do agendamento
+        const updateQuery = `
+            UPDATE agendamentos 
+            SET status = 'confirmado', forma_pagamento = ? 
+            WHERE id = ?
+        `;
+
+        db.query(updateQuery, [formaPagamento, agendamentoId], async (err, result) => {
+            if (err) {
+                return res.status(500).json({ error: 'Erro ao atualizar agendamento' });
+            }
+
+            // Busca os dados do agendamento para enviar no email
+            db.query('SELECT * FROM agendamentos WHERE id = ?', [agendamentoId], async (err, results) => {
+                if (err || results.length === 0) {
+                    return res.status(500).json({ error: 'Erro ao buscar dados do agendamento' });
+                }
+
+                const agendamento = results[0];
+
+                // Envia email de confirmação
+                const mailOptions = {
+                    from: 'seu-email@gmail.com',
+                    to: agendamento.email,
+                    subject: 'Confirmação de Agendamento - Dextrategia',
+                    html: `
+                        <h2>Confirmação de Agendamento</h2>
+                        <p>Olá ${agendamento.nome},</p>
+                        <p>Seu agendamento foi confirmado com sucesso!</p>
+                        <p><strong>Detalhes:</strong></p>
+                        <ul>
+                            <li>Serviço: ${agendamento.tipo_servico}</li>
+                            <li>Consultor: ${agendamento.consultor}</li>
+                            <li>Data: ${new Date(agendamento.data_consulta).toLocaleDateString()}</li>
+                            <li>Hora: ${agendamento.hora_consulta}</li>
+                            <li>Tipo de Reunião: ${agendamento.tipo_reuniao}</li>
+                            <li>Valor: €${agendamento.valor}</li>
+                        </ul>
+                        <p>Agradecemos sua preferência!</p>
+                    `
+                };
+
+                try {
+                    await transporter.sendMail(mailOptions);
+                    res.json({ success: true, message: 'Pagamento processado e email enviado' });
+                } catch (emailError) {
+                    console.error('Erro ao enviar email:', emailError);
+                    res.status(500).json({ error: 'Erro ao enviar email de confirmação' });
+                }
+            });
+        });
+    } catch (error) {
+        console.error('Erro:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
 
 // Criar admin inicial
 const createInitialAdmin = async () => {

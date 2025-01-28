@@ -129,34 +129,47 @@ tipoServicoSelect.addEventListener('change', () => {
         });
     }
 });
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('agendamentoForm');
-    if (!form) return;
-
-    const servicos = {
-        'pack-starter': 225,
-        'pack-business': 450,
-        'pack-enterprise': 800,
-        'pack-premium': 1200,
-        'individual': 100
+// Primeiro definimos os serviços e seus valores
+const servicos = {
+    'individual': 100,
+    'pack-starter': 225,
+    'pack-business': 450,
+    'pack-enterprise': 800,
+    'pack-premium': 1200
+};
+document.getElementById('agendamentoForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        nome: document.getElementById('nome').value,
+        email: document.getElementById('email').value,
+        tipo_servico: document.getElementById('tipo_servico').value,
+        consultor: document.getElementById('consultor').value,
+        data_consulta: document.getElementById('data').value,
+        hora_consulta: document.getElementById('hora').value,
+        tipo_reuniao: document.getElementById('tipo_reuniao').value,
+        descricao: document.getElementById('descricao').value,
+        valor: servicos[document.getElementById('tipo_servico').value]
     };
 
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const servicoSelecionado = document.getElementById('tipo_servico').selectedOptions[0];
-        
-        const bookingDetails = {
-            nome: document.getElementById('nome').value,
-            email: document.getElementById('email').value,
-            servico: servicoSelecionado.textContent,
-            valorTotal: servicos[servicoSelecionado.value],
-            consultor: document.getElementById('consultor').selectedOptions[0].textContent,
-            data: document.getElementById('data').value,
-            hora: document.getElementById('hora').value
-        };
-        
-        localStorage.setItem('bookingDetails', JSON.stringify(bookingDetails));
-        window.location.href = 'pagamentos.html';
-    });
+    try {
+        const response = await fetch('http://localhost:3000/api/agendamentos', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            localStorage.setItem('agendamentoId', result.id);
+            window.location.href = 'pagamentos.html';
+        } else {
+            alert('Erro ao agendar consulta. Por favor, tente novamente.');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao agendar consulta. Por favor, tente novamente.');
+    }
 });

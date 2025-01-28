@@ -79,7 +79,56 @@
             margin: 0 auto;
             padding: 2rem 1rem;
         }
+        Untitled
 
+.logout-btn {
+    background: linear-gradient(45deg, #ff6b6b, #ff8787);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(255, 107, 107, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.logout-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+    background: linear-gradient(45deg, #ff5252, #ff6b6b);
+}
+
+.logout-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(255, 107, 107, 0.2);
+}
+
+.logout-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+    );
+    transition: 0.5s;
+}
+
+.logout-btn:hover::before {
+    left: 100%;
+}
         .card {
             background-color: white;
             border-radius: 0.75rem;
@@ -256,6 +305,7 @@
     <main>
         <div class="card profile">
             <h2 id="consultant-full-name">João Silva</h2>
+            <button onclick="logout()" class="logout-btn">Sair</button>
             <div class="grid">
                 <div>
                     <span>Especialidade</span>
@@ -445,10 +495,27 @@
             console.log('Arquivos para upload:', files);
         }
 
-        function logout() {
-            localStorage.removeItem('token');
-            window.location.href = '/frontend/login.html';
-        }
+async function logout() {
+    try {
+        const response = await fetch('http://localhost:3000/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        // Remove token regardless of response
+        localStorage.removeItem('token');
+        
+        // Redirect to login page
+        window.location.href = '/frontend/index.html';
+    } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+        // Even if the request fails, we'll remove the token and redirect
+        localStorage.removeItem('token');
+        window.location.href = '/frontend/index.html';
+    }
+}
     </script>
 </body>
 </html>

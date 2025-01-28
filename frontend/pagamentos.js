@@ -26,7 +26,38 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('paypal-email').value = bookingDetails.emailCliente;
         document.getElementById('card-name').value = bookingDetails.nomeCliente;
     }
- 
+    document.addEventListener('DOMContentLoaded', function() {
+        const formaPagamento = document.querySelectorAll('.payment-option');
+        
+        formaPagamento.forEach(option => {
+            option.addEventListener('click', async function() {
+                const agendamentoId = localStorage.getItem('agendamentoId');
+                const paymentType = this.dataset.type;
+    
+                try {
+                    const response = await fetch('http://localhost:3000/api/processar-pagamento', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            agendamentoId,
+                            formaPagamento: paymentType
+                        })
+                    });
+    
+                    if (response.ok) {
+                        window.location.href = 'confirmacao.html';
+                    } else {
+                        alert('Erro ao processar pagamento. Por favor, tente novamente.');
+                    }
+                } catch (error) {
+                    console.error('Erro:', error);
+                    alert('Erro ao processar pagamento. Por favor, tente novamente.');
+                }
+            });
+        });
+    });
     
     // Event listeners para métodos de pagamento
     paymentMethods.forEach(method => {
