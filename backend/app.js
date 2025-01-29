@@ -314,66 +314,167 @@ app.post('/api/agendamentos', async (req, res) => {
     }
 });
 
+
+app.post('/api/payments', (req, res) => {
+  const {
+      nome,
+      email,
+      servico,
+      valor_total,
+      forma_pagamento,
+      consultor,
+      data_consulta,
+      hora_consulta,
+      agendamento_id
+  } = req.body;
+
+  const query = `
+      INSERT INTO payments 
+      (nome, email, servico, valor_total, forma_pagamento, consultor, 
+       data_consulta, hora_consulta, agendamento_id, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmado')
+  `;
+
+  db.query(query, [
+      nome,
+      email,
+      servico,
+      valor_total,
+      forma_pagamento,
+      consultor,
+      data_consulta,
+      hora_consulta,
+      agendamento_id
+  ], (err, result) => {
+      if (err) {
+          console.error('Erro ao salvar pagamento:', err);
+          return res.status(500).json({ error: 'Erro ao processar pagamento' });
+      }
+      
+      // Se o pagamento foi salvo com sucesso, envia o email de confirmação
+      const mailOptions = {
+          from: 'seu-email@gmail.com', // Substitua pelo seu email
+          to: email,
+          subject: 'Confirmação de Pagamento - Dextrategia',
+          html: `
+              <h2>Confirmação de Pagamento</h2>
+              <p>Olá ${nome},</p>
+              <p>Seu pagamento foi confirmado com sucesso!</p>
+              <p><strong>Detalhes:</strong></p>
+              <ul>
+                  <li>Serviço: ${servico}</li>
+                  <li>Consultor: ${consultor}</li>
+                  <li>Data: ${new Date(data_consulta).toLocaleDateString()}</li>
+                  <li>Hora: ${hora_consulta}</li>
+                  <li>Valor: €${valor_total}</li>
+                  <li>Forma de Pagamento: ${forma_pagamento}</li>
+              </ul>
+              <p>Agradecemos sua preferência!</p>
+          `
+      };
+
+      transporter.sendMail(mailOptions, (emailErr) => {
+          if (emailErr) {
+              console.error('Erro ao enviar email:', emailErr);
+              // Ainda retornamos sucesso pois o pagamento foi processado
+              return res.json({ 
+                  success: true, 
+                  id: result.insertId, 
+                  warning: 'Pagamento processado mas houve erro ao enviar email' 
+              });
+          }
+          res.json({ success: true, id: result.insertId });
+      });
+  });
+});
+
+// Rota para enviar email de confirmação
+app.post('/api/send-confirmation-email', async (req, res) => {
+  const {
+      nome,
+      email,
+      servico,
+      valor_total,
+      forma_pagamento,
+      consultor,
+      data_consulta,
+      hora_consulta
+  } = req.body;
+
+  const mailOptions = {
+      from: 'ingridextra@gmail.com', // Substitua pelo seu email
+      to: email,
+      subject: 'Confirmação de Agendamento - Dextrategia',
+      html: `
+          <h2>Confirmação de Agendamento</h2>
+          <p>Olá ${nome},</p>
+          <p>Seu agendamento foi confirmado com sucesso!</p>
+          <p><strong>Detalhes:</strong></p>
+          <ul>
+              <li>Serviço: ${servico}</li>
+              <li>Consultor: ${consultor}</li>
+              <li>Data: ${new Date(data_consulta).toLocaleDateString()}</li>
+              <li>Hora: ${hora_consulta}</li>
+              <li>Valor: €${valor_total}</li>
+              <li>Forma de Pagamento: ${forma_pagamento}</li>
+          </ul>
+          <p>Agradecemos sua preferência!</p>
+          <p>Equipe Dextrategia</p>
+      `
+  };
+
+  try {
+      await transporter.sendMail(mailOptions);
+      res.json({ success: true, message: 'Email enviado com sucesso' });
+  } catch (error) {
+      console.error('Erro ao enviar email:', error);
+      res.status(500).json({ error: 'Erro ao enviar email de confirmação' });
+  }
+});
+
+
 // Rota para processar pagamento e enviar email
-app.post('/api/processar-pagamento', async (req, res) => {
-    const { agendamentoId, formaPagamento } = req.body;
+app.post('/api/send-confirmation-email', async (req, res) => {
+  const {
+      nome,
+      email,
+      servico,
+      valor_total,
+      forma_pagamento,
+      consultor,
+      data_consulta,
+      hora_consulta
+  } = req.body;
 
-    try {
-        // Atualiza o status do agendamento
-        const updateQuery = `
-            UPDATE agendamentos 
-            SET status = 'confirmado', forma_pagamento = ? 
-            WHERE id = ?
-        `;
+  const mailOptions = {
+      from: 'dextra@gmail.com', // Substitua pelo seu email
+      to: email,
+      subject: 'Confirmação de Agendamento - Dextrategia',
+      html: `
+          <h2>Confirmação de Agendamento</h2>
+          <p>Olá ${nome},</p>
+          <p>Seu agendamento foi confirmado com sucesso!</p>
+          <p><strong>Detalhes:</strong></p>
+          <ul>
+              <li>Serviço: ${servico}</li>
+              <li>Consultor: ${consultor}</li>
+              <li>Data: ${new Date(data_consulta).toLocaleDateString()}</li>
+              <li>Hora: ${hora_consulta}</li>
+              <li>Valor: €${valor_total}</li>
+              <li>Forma de Pagamento: ${forma_pagamento}</li>
+          </ul>
+          <p>Agradecemos sua preferência!</p>
+          <p>Equipe Dextrategia</p>
+      `
+  };
 
-        db.query(updateQuery, [formaPagamento, agendamentoId], async (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: 'Erro ao atualizar agendamento' });
-            }
-
-            // Busca os dados do agendamento para enviar no email
-            db.query('SELECT * FROM agendamentos WHERE id = ?', [agendamentoId], async (err, results) => {
-                if (err || results.length === 0) {
-                    return res.status(500).json({ error: 'Erro ao buscar dados do agendamento' });
-                }
-
-                const agendamento = results[0];
-
-                // Envia email de confirmação
-                const mailOptions = {
-                    from: 'seu-email@gmail.com',
-                    to: agendamento.email,
-                    subject: 'Confirmação de Agendamento - Dextrategia',
-                    html: `
-                        <h2>Confirmação de Agendamento</h2>
-                        <p>Olá ${agendamento.nome},</p>
-                        <p>Seu agendamento foi confirmado com sucesso!</p>
-                        <p><strong>Detalhes:</strong></p>
-                        <ul>
-                            <li>Serviço: ${agendamento.tipo_servico}</li>
-                            <li>Consultor: ${agendamento.consultor}</li>
-                            <li>Data: ${new Date(agendamento.data_consulta).toLocaleDateString()}</li>
-                            <li>Hora: ${agendamento.hora_consulta}</li>
-                            <li>Tipo de Reunião: ${agendamento.tipo_reuniao}</li>
-                            <li>Valor: €${agendamento.valor}</li>
-                        </ul>
-                        <p>Agradecemos sua preferência!</p>
-                    `
-                };
-
-                try {
-                    await transporter.sendMail(mailOptions);
-                    res.json({ success: true, message: 'Pagamento processado e email enviado' });
-                } catch (emailError) {
-                    console.error('Erro ao enviar email:', emailError);
-                    res.status(500).json({ error: 'Erro ao enviar email de confirmação' });
-                }
-            });
-        });
-    } catch (error) {
-        console.error('Erro:', error);
-        res.status(500).json({ error: 'Erro interno do servidor' });
-    }
+  try {
+      await transporter.sendMail(mailOptions);
+      res.json({ success: true, message: 'Email enviado com sucesso' });
+  } catch (error) {
+      console.error('Erro ao enviar email:', error);
+      res.status(500).json({ error: 'Erro ao enviar email de confirmação' });
+  }
 });
 
 // Criar admin inicial

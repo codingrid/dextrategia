@@ -59,7 +59,7 @@ const consultores = [
 // Inicializa o Flatpickr
 flatpickr("#data", {
     enableTime: false,
-    dateFormat: "d/m/y",
+    dateFormat: "Y-m-d",
     minDate: "today",
     disable: [
         function(date) {
@@ -144,12 +144,12 @@ document.getElementById('agendamentoForm').addEventListener('submit', async func
         nome: document.getElementById('nome').value,
         email: document.getElementById('email').value,
         tipo_servico: document.getElementById('tipo_servico').value,
+        valor: servicos[document.getElementById('tipo_servico').value], // valor baseado no serviço selecionado
         consultor: document.getElementById('consultor').value,
         data_consulta: document.getElementById('data').value,
         hora_consulta: document.getElementById('hora').value,
         tipo_reuniao: document.getElementById('tipo_reuniao').value,
-        descricao: document.getElementById('descricao').value,
-        valor: servicos[document.getElementById('tipo_servico').value]
+        descricao: document.getElementById('descricao').value
     };
 
     try {
@@ -163,6 +163,8 @@ document.getElementById('agendamentoForm').addEventListener('submit', async func
 
         if (response.ok) {
             const result = await response.json();
+            // Salva TODOS os dados no localStorage
+            localStorage.setItem('bookingDetails', JSON.stringify(formData));
             localStorage.setItem('agendamentoId', result.id);
             window.location.href = 'pagamentos.html';
         } else {

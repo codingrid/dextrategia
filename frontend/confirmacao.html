@@ -16,20 +16,102 @@
             background-attachment: fixed;
             height: 100vh;
             margin: 0;
+            color: #333;
         }
         
+        .confirmation-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
         .icon {
             font-size: 80px;
-            color: green;
+            color: #4CAF50;
             margin-bottom: 20px;
+        }
+
+        .details {
+            text-align: left;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            max-width: 400px;
+        }
+
+        .details p {
+            margin: 10px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .details strong {
+            color: #2196F3;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .back-button:hover {
+            background-color: #1976D2;
         }
     </style>
 </head>
 <body>
-    <div class="icon">&#10004;</div>
-    <h1>Pagamento Confirmado!</h1>
-    <p>Obrigado por sua compra.</p>
-    <p>Você receberá um email com a confirmação do dia e hora da sua compra, junto com o recibo de pagamento.</p>
-    <p>Caso tenha alguma dúvida, entre em contato conosco.</p>
+    <div class="confirmation-container">
+        <div class="icon">&#10004;</div>
+        <h1>Pagamento Confirmado!</h1>
+        <p>Obrigado por sua compra.</p>
+        
+        <div class="details">
+            <h3>Detalhes do Agendamento:</h3>
+            <div id="confirmationDetails"></div>
+        </div>
+
+        <p>Um email de confirmação foi enviado para o seu endereço cadastrado.</p>
+        <p>Caso tenha alguma dúvida, entre em contato conosco.</p>
+        
+        <a href="user-dashboard.html" class="back-button">Voltar ao Dashboard</a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const confirmationDetails = JSON.parse(localStorage.getItem('confirmationDetails'));
+            if (confirmationDetails) {
+                const detailsContainer = document.getElementById('confirmationDetails');
+                
+                // Formata a data para o padrão brasileiro
+                const data = new Date(confirmationDetails.data_consulta);
+                const dataFormatada = data.toLocaleDateString('pt-BR');
+
+                detailsContainer.innerHTML = `
+                    <p><strong>Nome:</strong> ${confirmationDetails.nome}</p>
+                    <p><strong>Serviço:</strong> ${confirmationDetails.servico}</p>
+                    <p><strong>Consultor:</strong> ${confirmationDetails.consultor}</p>
+                    <p><strong>Data:</strong> ${dataFormatada}</p>
+                    <p><strong>Horário:</strong> ${confirmationDetails.hora_consulta}</p>
+                    <p><strong>Valor:</strong> €${confirmationDetails.valor_total}</p>
+                    <p><strong>Forma de Pagamento:</strong> ${confirmationDetails.forma_pagamento}</p>
+                `;
+
+                // Limpa os dados do localStorage após mostrar
+                localStorage.removeItem('confirmationDetails');
+                localStorage.removeItem('bookingDetails');
+                localStorage.removeItem('agendamentoId');
+            }
+        });
+    </script>
 </body>
 </html>
