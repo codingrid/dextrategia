@@ -549,35 +549,49 @@
 
         // Carrega reuniões
         async function loadMeetings() {
-            try {
-                const response = await fetch('http://localhost:3000/api/consultant/meetings', {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-                
-                if (!response.ok) throw new Error('Falha ao carregar reuniões');
-                
-                const meetings = await response.json();
-                const meetingsList = document.getElementById('meetings-list');
-                
-                meetingsList.innerHTML = meetings.map(meeting => `
-                    <div class="meeting-item">
-                        <p>Data: ${meeting.data}</p>
-                        <p>Hora: ${meeting.hora}</p>
-                        <p>Status: ${meeting.status}</p>
-                        ${meeting.status === 'pendente' ? `
-                            <button onclick="confirmMeeting('${meeting.id}')">Confirmar</button>
-                            <button onclick="cancelMeeting('${meeting.id}')">Cancelar</button>
-                        ` : ''}
-                    </div>
-                `).join('');
-            } catch (error) {
-                console.error('Erro ao carregar reuniões:', error);
-                document.getElementById('meetings-list').innerHTML = 
-                    '<p style="color: #ef4444;">Erro ao carregar reuniões. Por favor, tente novamente.</p>';
+    try {
+        const response = await fetch('http://localhost:3000/api/consultant/meetings', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Falha ao carregar reuniões');
         }
+        
+        const meetings = await response.json();
+        console.log('Reuniões recebidas:', meetings); // Debug log
+        
+        const meetingsList = document.getElementById('meetings-list');
+        
+        if (!meetings || meetings.length === 0) {
+            meetingsList.innerHTML = '<p>Nenhuma reunião agendada.</p>';
+            return;
+        }
+
+        meetingsList.innerHTML = meetings.map(meeting => {
+            const data = new Date(meeting.data_consulta).toLocaleDateString('pt-BR');
+            
+            return `
+                <div class="meeting-item">
+                    <h3>Reunião com ${meeting.nome}</h3>
+                    <p><strong>Data:</strong> ${data}</p>
+                    <p><strong>Horário:</strong> ${meeting.hora_consulta}</p>
+                    <p><strong>Tipo de Serviço:</strong> ${meeting.tipo_servico}</p>
+                    <p><strong>Tipo de Reunião:</strong> ${meeting.tipo_reuniao}</p>
+                    <p><strong>Descrição:</strong> ${meeting.descricao || 'Não informada'}</p>
+                    <p><strong>Valor:</strong> R$ ${meeting.valor}</p>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Erro detalhado ao carregar reuniões:', error);
+        document.getElementById('meetings-list').innerHTML = 
+            `<p style="color: #ef4444;">Erro ao carregar reuniões: ${error.message}</p>`;
+    }
+}
 
         // Confirma uma reunião
         async function confirmMeeting(meetingId) {

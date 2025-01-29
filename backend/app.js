@@ -444,40 +444,41 @@ app.post('/api/consultant/availability', authenticateToken, (req, res) => {
   });
 });
 
-// Corrigir a rota de meetings para usar mysql em vez de pool
 app.get('/api/consultant/meetings', authenticateToken, (req, res) => {
-  const query = `
-      SELECT 
-          m.id,
-          m.data,
-          m.hora,
-          m.titulo,
-          m.descricao,
-          m.status,
-          m.tipo_reuniao,
-          m.link_reuniao,
-          u.nome as nome_cliente
-      FROM 
-          meetings m
-      INNER JOIN 
-          users u ON m.user_id = u.id
-      WHERE 
-          m.consultor_id = ?
-          AND m.data >= CURRENT_DATE
-      ORDER BY 
-          m.data ASC,
-          m.hora ASC
-  `;
-  
-  db.query(query, [req.user.id], (err, results) => {
-      if (err) {
-          console.error('Erro ao buscar reuniões:', err);
-          return res.status(500).json({ error: 'Erro ao carregar reuniões' });
-      }
-      res.json(results);
-  });
-});
+    const query = `
+        SELECT 
+            id,
+            nome,
+            email,
+            tipo_servico,
+            data_consulta,
+            hora_consulta,
+            tipo_reuniao,
+            descricao,
+            valor,
+            consultor
+        FROM 
+            agendamentos
+        WHERE 
+            consultor = ?
+        ORDER BY 
+            data_consulta ASC,
+            hora_consulta ASC
+    `;
+    
+    db.query(query, [req.user.id], (err, results) => {
+        if (err) {
+            console.error('Erro ao buscar reuniões:', err);
+            return res.status(500).json({ error: 'Erro ao carregar reuniões' });
+        }
 
+        // Log para debug
+        console.log('ID do Consultor:', req.user.id);
+        console.log('Reuniões encontradas:', results);
+
+        res.json(results);
+    });
+});
 // Corrigir a rota de atualização de status para usar mysql
 app.put('/api/consultant/meetings/:id/status', authenticateToken, (req, res) => {
   const { id } = req.params;

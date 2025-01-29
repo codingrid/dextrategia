@@ -116,7 +116,7 @@ document.getElementById('agendamentoForm').addEventListener('submit', async func
         email: document.getElementById('email').value,
         tipo_servico: document.getElementById('tipo_servico').value,
         valor: servicos[document.getElementById('tipo_servico').value],
-        consultor: document.getElementById('consultor').value,
+        consultor: document.getElementById('consultor').value, // Agora já está salvando o ID
         data_consulta: document.getElementById('data').value,
         hora_consulta: document.getElementById('hora').value,
         tipo_reuniao: document.getElementById('tipo_reuniao').value,
