@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Dashboard do Consultor</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
@@ -15,122 +15,76 @@
         }
 
         body {
-    background: url('images/background.png') no-repeat center center fixed;
-      background-size: cover;
-      color: #6B7280;
-      font-weight: 300;
-
-  }
-
-        h2 {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            color: #60a5fa;
+            background: url('/frontend/images/background.png') no-repeat center center fixed;
+            background-size: cover;
+            color: #4b5563;
+            min-height: 100vh;
         }
 
-        nav {
-            background-color: white;
+        .header {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 1.5rem;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
         }
 
-        nav .container {
-            max-width: 1280px;
+        .container {
+            max-width: 1000px;
             margin: 0 auto;
             padding: 0 1rem;
         }
 
-        nav .content {
+        .profile-section {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            height: 4rem;
+            margin-bottom: 1rem;
         }
 
-        nav .logo {
+        .profile-info h1 {
+            color: #60a5fa;
+            font-size: 2rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .profile-details {
             display: flex;
-            align-items: center;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 1rem;
         }
 
-        nav .logo img {
-            height: 2rem;
-            margin-right: 1rem;
+        .profile-details span {
+            color: #60a5fa;
+            font-size: 1rem;
+            font-weight: 500;
         }
 
-        nav .user {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
+        .profile-details p {
+            color: #1f2937;
+            font-weight: 500;
+            margin-top: 0.25rem;
         }
 
-        nav .logout {
-            background-color: #ef4444;
+        .logout-btn {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
             color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
         }
 
-        nav .logout:hover {
-            background-color: #dc2626;
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
         }
 
-        main {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 2rem 1rem;
-        }
-        Untitled
-
-.logout-btn {
-    background: linear-gradient(45deg, #ff6b6b, #ff8787);
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 14px;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 10px rgba(255, 107, 107, 0.2);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    position: relative;
-    overflow: hidden;
-}
-
-.logout-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-    background: linear-gradient(45deg, #ff5252, #ff6b6b);
-}
-
-.logout-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(255, 107, 107, 0.2);
-}
-
-.logout-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.2),
-        transparent
-    );
-    transition: 0.5s;
-}
-
-.logout-btn:hover::before {
-    left: 100%;
-}
         .card {
-            background-color: white;
+            background: white;
             border-radius: 0.75rem;
             padding: 1.5rem;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -138,29 +92,34 @@
         }
 
         .card h2 {
+            color: #1f2937;
             font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-
-        .profile .grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 1rem;
-        }
-
-        .availability .calendar {
             margin-bottom: 1.5rem;
         }
 
-        .availability .slots {
+        /* Calendário e Slots de Tempo */
+        .calendar-section {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 1rem;
-            margin-bottom: 1rem;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: flex-start;
         }
 
-        .availability .slot label {
+        .time-slots {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .time-slot {
+            position: relative;
+        }
+
+        .time-slot input[type="checkbox"] {
+            display: none;
+        }
+
+        .time-slot label {
             display: block;
             padding: 1rem;
             background-color: #f3f4f6;
@@ -168,354 +127,522 @@
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
-            font-size: 1.125rem;
-            font-weight: 500;
         }
 
-        .availability .slot input[type="checkbox"] {
-            display: none;
-        }
-
-        .availability .slot input[type="checkbox"]:checked + label {
-            background-color: #60a5fa;
-            color: white;
-        }
-
-        .availability .actions {
-            text-align: right;
-        }
-
-        .availability .save-button {
-            background-color: #60a5fa;
-            color: white;
-            padding: 0.625rem 1.5rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s;
-            font-weight: 500;
-            border: none;
-            cursor: pointer;
-        }
-
-        .availability .save-button:hover {
+        .time-slot input[type="checkbox"]:checked + label {
             background-color: #3b82f6;
+            color: white;
         }
 
-        .appointments .appointment {
+        .save-btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            margin-top: 1rem;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .save-btn:hover {
+            background-color: #2563eb;
+        }
+
+        /* Lista de Reuniões */
+        .meeting {
             border: 1px solid #e5e7eb;
             border-radius: 0.5rem;
             padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            transition: box-shadow 0.2s;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
         }
 
-        .appointments .appointment:hover {
+        .meeting:hover {
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        .appointments .appointment-header {
+        .meeting-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1rem;
         }
 
-        .appointments .client-name {
-            font-size: 1.25rem;
-            font-weight: 600;
+        .meeting-info h3 {
+            color: #1f2937;
+            font-size: 1.125rem;
+            margin-bottom: 0.25rem;
         }
 
-        .appointments .appointment-info {
+        .meeting-date {
             color: #6b7280;
             font-size: 0.875rem;
         }
 
-        .appointments .appointment-format {
-            padding: 0.25rem 0.75rem;
+        .meeting-status {
+            padding: 0.375rem 0.75rem;
             border-radius: 9999px;
             font-size: 0.75rem;
             font-weight: 500;
         }
 
-        .appointments .format-online {
-            background-color: #d1fae5;
-            color: #065f46;
-        }
-
-        .appointments .format-presential {
+        .status-pendente {
             background-color: #dbeafe;
             color: #1e40af;
         }
 
-        .appointments .appointment-title {
+        .status-confirmada {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .status-cancelada {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .meeting-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn-confirm {
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .btn-cancel {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .btn-confirm:hover, .btn-cancel:hover {
+            filter: brightness(110%);
+        }
+
+        .meeting-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .meeting-type-icon {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        /* Loading state */
+        .loading {
+            color: #60a5fa;
             font-size: 1rem;
             font-weight: 500;
-            margin-bottom: 0.5rem;
         }
+        .calendar-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: flex-start;
+    }
 
-        .appointments .appointment-description {
-            color: #4b5563;
-        }
+    .calendar {
+      flex: 1;
+      margin-right: 2rem;
+    }
 
-        .documents .dropzone {
-            border: 2px dashed #e5e7eb;
-            border-radius: 0.5rem;
-            padding: 2rem;
-            text-align: center;
-            transition: all 0.2s;
-            margin-bottom: 1rem;
-        }
+    .time-slots {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
 
-        .documents .dropzone.dragover {
-            background-color: #f9fafb;
-            border-color: #2563eb;
-        }
+    .time-slot {
+      position: relative;
+    }
 
-        .documents .select-button {
-            background-color: #60a5fa;
-            color: white;
-            padding: 0.625rem 1.5rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s;
-            font-weight: 500;
-            border: none;
-            cursor: pointer;
-        }
+    .time-slot input[type="checkbox"] {
+      display: none;
+    }
 
-        .documents .select-button:hover {
-            background-color: #3b82f6;
-        }
-    </style>
+    .time-slot label {
+      display: block;
+      padding: 1rem;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .time-slot input[type="checkbox"]:checked + label {
+      background-color: #3b82f6;
+      color: white;
+    }
+  </style>
 </head>
 <body>
-    <nav>
-        <div class="container">
-            <div class="content">
-                <div class="logo">
-                    <img src="images/dextrategia_logo.png" alt="Logo">
-                    <span>Dashboard do Consultor</span>
-                </div>
-                <div class="user">
-                    <span id="consultant-name">João Silva</span>
-                    
-                </div>
+  <div class="header">
+    <div class="container">
+      <div class="profile-section">
+        <div class="profile-info">
+          <h1>Olá, <span id="consultant-name" class="loading">Carregando...</span></h1>
+          <div class="profile-details">
+            <div>
+              <span>Especialidade</span>
+              <p id="consultant-specialty" class="loading">Carregando...</p>
             </div>
+            <div>
+              <span>Valor/Hora</span>
+              <p id="consultant-rate" class="loading">Carregando...</p>
+            </div>
+          </div>
         </div>
-    </nav>
+        <button class="logout-btn" onclick="logout()">Sair</button>
+      </div>
+    </div>
+  </div>
 
-    <main>
-        <div class="card profile">
-            <h2 id="consultant-full-name">João Silva</h2>
-            <button onclick="logout()" class="logout-btn">Sair</button>
-            <div class="grid">
-                <div>
-                    <span>Especialidade</span>
-                    <p id="consultant-specialty">Marketing Digital</p>
-                </div>
-                <div>
-                    <span>Valor/Hora</span>
-                    <p id="consultant-rate">R$ 100/hora</p>
-                </div>
-            </div>
+  <div class="container">
+    <div class="card">
+      <h2>Minha Disponibilidade</h2>
+      <div class="calendar-section">
+        <div class="calendar">
+          <div id="calendar"></div>
         </div>
-
-        <div class="card availability">
-            <h2>Disponibilidade</h2>
-            <div id="calendar" class="calendar"></div>
-            <div class="slots">
-                <div class="slot">
-                    <input type="checkbox" id="slot-09" name="time-slot" value="09:00">
-                    <label for="slot-09">09:00</label>
-                </div>
-                <div class="slot">
-                    <input type="checkbox" id="slot-10" name="time-slot" value="10:00">
-                    <label for="slot-10">10:00</label>
-                </div>
-                <div class="slot">
-                    <input type="checkbox" id="slot-11" name="time-slot" value="11:00">
-                    <label for="slot-11">11:00</label>
-                </div>
-                <div class="slot">
-                    <input type="checkbox" id="slot-14" name="time-slot" value="14:00">
-                    <label for="slot-14">14:00</label>
-                </div>
-                <div class="slot">
-                    <input type="checkbox" id="slot-15" name="time-slot" value="15:00">
-                    <label for="slot-15">15:00</label>
-                </div>
-                <div class="slot">
-                    <input type="checkbox" id="slot-16" name="time-slot" value="16:00">
-                    <label for="slot-16">16:00</label>
-                </div>
-            </div>
-            <div class="actions">
-                <button class="save-button">Salvar Disponibilidade</button>
-            </div>
+        <div class="time-slots">
+          <div class="time-slot">
+            <input type="checkbox" id="slot-08" name="time-slot" value="08:00">
+            <label for="slot-08">08:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-09" name="time-slot" value="09:00">
+            <label for="slot-09">09:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-10" name="time-slot" value="10:00">
+            <label for="slot-10">10:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-11" name="time-slot" value="11:00">
+            <label for="slot-11">11:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-12" name="time-slot" value="12:00">
+            <label for="slot-12">12:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-13" name="time-slot" value="13:00">
+            <label for="slot-13">13:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-14" name="time-slot" value="14:00">
+            <label for="slot-14">14:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-15" name="time-slot" value="15:00">
+            <label for="slot-15">15:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-16" name="time-slot" value="16:00">
+            <label for="slot-16">16:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-17" name="time-slot" value="17:00">
+            <label for="slot-17">17:00</label>
+          </div>
         </div>
-
-        <div class="card appointments">
-            <h2>Meus Agendamentos</h2>
-            <div id="appointments-list">
-                <div class="appointment">
-                    <div class="appointment-header">
-                        <div>
-                            <h3 class="client-name">Empresa XYZ</h3>
-                            <p class="appointment-info">25/01/2025 - 14:00</p>
-                        </div>
-                        <span class="appointment-format format-online">Online</span>
-                    </div>
-                    <h4 class="appointment-title">Consultoria em Marketing Digital</h4>
-                    <p class="appointment-description">Análise da estratégia atual e sugestões de melhorias.</p>
-                </div>
-                <div class="appointment">
-                    <div class="appointment-header">
-                        <div>
-                            <h3 class="client-name">Startup ABC</h3>
-                            <p class="appointment-info">27/01/2025 - 16:00</p>  
-                        </div>
-                        <span class="appointment-format format-presential">Presencial</span>
-                    </div>
-                    <h4 class="appointment-title">Workshop de Mídias Sociais</h4>
-                    <p class="appointment-description">Treinamento para a equipe interna.</p>
-                </div>
-            </div>  
+      </div>
+      <button class="save-btn" onclick="saveAvailability()">Salvar Disponibilidade</button>
+    </div>
+    
+        <div class="card">
+          <h2>Minhas Reuniões</h2>
+          <div id="meetings-list">
+            <!-- As reuniões serão carregadas aqui -->
+          </div>
         </div>
-
-        <div class="card documents">
-            <h2>Documentos</h2>
-            <div id="dropzone" class="dropzone">
-                <p>Arraste arquivos aqui ou</p>
-                <button class="select-button" onclick="document.getElementById('file-input').click()">Selecionar Arquivos</button>
-                <input type="file" id="file-input" multiple hidden>
-            </div>
-            <div id="documents-list">
-                <!-- Lista de documentos será inserida aqui -->
-            </div>
-        </div>
-    </main>
-
-    <script>
+      </div>
+    
+      <script>
+        // Variáveis globais
+        let calendar;
+    
+        // Inicialização
         document.addEventListener('DOMContentLoaded', () => {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = '/frontend/login.html';
-                return;
+          const token = localStorage.getItem('token');
+          if (!token) {
+            window.location.href = '/login.html';
+            return;
+          }
+    
+          // Inicializa o calendário
+          calendar = flatpickr("#calendar", {
+            inline: true,
+            mode: "single",
+            dateFormat: "Y-m-d",
+            minDate: "today",
+            onChange: function(selectedDates) {
+              if (selectedDates.length > 0) {
+                updateTimeSlots(selectedDates[0].toISOString().split('T')[0]);
+              }
             }
-
-            flatpickr("#calendar", {
-                inline: true,
-                mode: "multiple",
-                dateFormat: "Y-m-d",
-                onChange: function(selectedDates) {
-                    console.log('Datas selecionadas:', selectedDates);
-                }
-            });
-
-            const dropzone = document.getElementById('dropzone');
-            
-            dropzone.addEventListener('dragover', (event) => {
-                event.preventDefault();
-                dropzone.classList.add('dragover');
-            });
-
-            dropzone.addEventListener('dragleave', () => {
-                dropzone.classList.remove('dragover');
-            });
-
-            dropzone.addEventListener('drop', (event) => {
-                event.preventDefault();
-                dropzone.classList.remove('dragover');
-                const files = Array.from(event.dataTransfer.files);
-                handleFiles(files);
-            });
-
-            loadConsultantInfo();
-            loadAppointments();
+          });
+    
+          // Carrega dados iniciais
+          loadConsultantInfo();
+          loadAvailability();
+          loadMeetings();
         });
-
+    
+        // Carrega informações do consultor
         async function loadConsultantInfo() {
+          try {
+            const response = await fetch('http://localhost:3000/api/consultant/info', {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              }
+            });
+            
+            if (!response.ok) throw new Error('Falha ao carregar informações');
+            
+            const consultant = await response.json();
+            document.getElementById('consultant-name').textContent = consultant.user_id;
+            document.getElementById('consultant-specialty').textContent = consultant.name;
+            document.getElementById('consultant-rate').textContent = `R$ ${consultant.valor_hora}/hora`;
+    
+            // Remove a classe 'loading' após carregar as informações
+            document.querySelectorAll('.loading').forEach(el => el.classList.remove('loading'));
+          } catch (error) {
+            console.error('Erro ao carregar informações:', error);
+            alert('Erro ao carregar informações do consultor. Por favor, tente novamente.');
+          }
+        }
+                
+
+
+        // Carrega disponibilidade
+        async function loadAvailability() {
             try {
-                const response = await fetch('http://localhost:3000/api/consultant/info', {
+                const response = await fetch('http://localhost:3000/api/consultant/availability', {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 });
                 
-                if (!response.ok) {
-                    
+                if (!response.ok) throw new Error('Falha ao carregar disponibilidade');
+                
+                const availability = await response.json();
+                const availableDates = availability.map(slot => slot.data_disponivel);
+                calendar.setDate(availableDates, true);
+                
+                if (availableDates.length > 0) {
+                    updateTimeSlots(availableDates[0]);
                 }
-                
-                const consultant = await response.json();
-                document.getElementById('consultant-full-name').textContent = consultant.name;
-                document.getElementById('consultant-specialty').textContent = consultant.especialidade;
-                document.getElementById('consultant-rate').textContent = `R$ ${consultant.valor_hora}/hora`;
             } catch (error) {
-                console.error('Erro:', error);
-                
+                console.error('Erro ao carregar disponibilidade:', error);
+                alert('Erro ao carregar disponibilidade. Por favor, tente novamente.');
             }
         }
 
-        async function loadAppointments() {
+        // Atualiza slots de tempo
+        async function updateTimeSlots(selectedDate) {
             try {
-                const response = await fetch('http://localhost:3000/api/consultant/appointments', {
+                const response = await fetch(`http://localhost:3000/api/consultant/availability/${selectedDate}`, {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 });
                 
-                if (!response.ok) {
-                    
-                }
+                if (!response.ok) throw new Error('Falha ao carregar horários');
                 
-                const appointments = await response.json();
-                const appointmentsList = document.getElementById('appointments-list');
-                appointmentsList.innerHTML = appointments.map(appointment => `
-                    <div class="appointment">
-                        <div class="appointment-header">
-                            <div>
-                                <h3 class="client-name">${appointment.client_name}</h3>
-                                <p class="appointment-info">
-                                    ${new Date(appointment.date).toLocaleDateString()} - ${appointment.time}
-                                </p>
-                            </div>
-                            <span class="appointment-format ${appointment.format === 'Online' ? 'format-online' : 'format-presential'}">
-                                ${appointment.format}
-                            </span>
-                        </div>
-                        <h4 class="appointment-title">Título: ${appointment.title}</h4>
-                        <p class="appointment-description">Descrição: ${appointment.description}</p>
+                const slots = await response.json();
+                
+                document.querySelectorAll('[name="time-slot"]').forEach(checkbox => {
+                    const time = checkbox.value;
+                    const isAvailable = slots.some(slot => slot.hora_disponivel === time && slot.disponivel);
+                    checkbox.checked = isAvailable;
+                });
+            } catch (error) {
+                console.error('Erro ao atualizar horários:', error);
+                alert('Erro ao atualizar slots de tempo. Por favor, tente novamente.');
+            }
+        }
+
+        // Verifica conflitos de horários
+        async function hasConflicts(date, slots) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/consultant/meetings?date=${date}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Falha ao verificar conflitos');
+
+                const meetings = await response.json();
+                
+                return slots.some(slot => 
+                    meetings.some(meeting => meeting.hora === slot && meeting.status !== 'cancelada')
+                );
+            } catch (error) {
+                console.error('Erro ao verificar conflitos:', error);
+                return false;
+            }
+        }
+
+        // Salva disponibilidade
+        async function saveAvailability() {
+            const selectedDate = calendar.selectedDates[0];
+            if (!selectedDate) {
+                alert('Por favor, selecione uma data');
+                return;
+            }
+            
+            const selectedSlots = Array.from(document.querySelectorAll('[name="time-slot"]:checked'))
+                .map(checkbox => checkbox.value);
+
+            // Verifica se há conflitos nos slots selecionados
+            if (await hasConflicts(selectedDate.toISOString().split('T')[0], selectedSlots)) {
+                alert('Alguns dos horários selecionados já estão ocupados por reuniões. Por favor, escolha outros horários.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/consultant/availability', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        date: selectedDate.toISOString().split('T')[0],
+                        times: selectedSlots
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Falha ao salvar disponibilidade');
+                
+                alert('Disponibilidade salva com sucesso!');
+                await loadAvailability();
+            } catch (error) {
+                console.error('Erro ao salvar disponibilidade:', error);
+                alert('Erro ao salvar disponibilidade. Por favor, tente novamente.');
+            }
+        }
+
+        // Carrega reuniões
+        async function loadMeetings() {
+            try {
+                const response = await fetch('http://localhost:3000/api/consultant/meetings', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Falha ao carregar reuniões');
+                
+                const meetings = await response.json();
+                const meetingsList = document.getElementById('meetings-list');
+                
+                meetingsList.innerHTML = meetings.map(meeting => `
+                    <div class="meeting-item">
+                        <p>Data: ${meeting.data}</p>
+                        <p>Hora: ${meeting.hora}</p>
+                        <p>Status: ${meeting.status}</p>
+                        ${meeting.status === 'pendente' ? `
+                            <button onclick="confirmMeeting('${meeting.id}')">Confirmar</button>
+                            <button onclick="cancelMeeting('${meeting.id}')">Cancelar</button>
+                        ` : ''}
                     </div>
                 `).join('');
             } catch (error) {
-                console.error('Erro:', error);
-                
+                console.error('Erro ao carregar reuniões:', error);
+                document.getElementById('meetings-list').innerHTML = 
+                    '<p style="color: #ef4444;">Erro ao carregar reuniões. Por favor, tente novamente.</p>';
             }
         }
 
-        function handleFiles(files) {
-            console.log('Arquivos para upload:', files);
+        // Confirma uma reunião
+        async function confirmMeeting(meetingId) {
+            if (!confirm('Tem certeza que deseja confirmar esta reunião?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/consultant/meetings/${meetingId}/confirm`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Falha ao confirmar reunião');
+
+                await loadMeetings();
+                alert('Reunião confirmada com sucesso!');
+            } catch (error) {
+                console.error('Erro ao confirmar reunião:', error);
+                alert('Erro ao confirmar reunião. Por favor, tente novamente.');
+            }
         }
 
-async function logout() {
-    try {
-        const response = await fetch('http://localhost:3000/logout', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+        // Cancela uma reunião
+        async function cancelMeeting(meetingId) {
+            if (!confirm('Tem certeza que deseja cancelar esta reunião?')) {
+                return;
             }
-        });
-        
-        // Remove token regardless of response
-        localStorage.removeItem('token');
-        
-        // Redirect to login page
-        window.location.href = '/frontend/index.html';
-    } catch (error) {
-        console.error('Erro ao fazer logout:', error);
-        // Even if the request fails, we'll remove the token and redirect
-        localStorage.removeItem('token');
-        window.location.href = '/frontend/index.html';
-    }
-}
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/consultant/meetings/${meetingId}/cancel`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Falha ao cancelar reunião');
+
+                await loadMeetings();
+                alert('Reunião cancelada com sucesso!');
+            } catch (error) {
+                console.error('Erro ao cancelar reunião:', error);
+                alert('Erro ao cancelar reunião. Por favor, tente novamente.');
+            }
+        }
+
+        // Faz logout
+        async function logout() {
+            try {
+                await fetch('http://localhost:3000/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+            } catch (error) {
+                console.error('Erro ao fazer logout:', error);
+            } finally {
+                localStorage.removeItem('token');
+                window.location.href = '/index.html';
+            }
+        }
     </script>
 </body>
 </html>

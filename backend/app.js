@@ -336,9 +336,300 @@ app.get('/frontend/admin.js', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/admin.js'));
 });
 
+// Rota para buscar informações do consultor
+app.get('/api/consultant/info', authenticateToken, (req, res) => {
+  db.query(
+      'SELECT id, name, especialidade, valor_hora FROM consultants WHERE id = ?',
+      [req.user.id],
+      (err, results) => {
+          if (err) {
+              console.error('Erro ao buscar informações do consultor:', err);
+              return res.status(500).json({ error: 'Erro ao buscar informações' });
+          }
+          if (results.length === 0) {
+              return res.status(404).json({ error: 'Consultor não encontrado' });
+          }
+          res.json(results[0]);
+      }
+  );
+});
+
+// Rota para buscar disponibilidade do consultor
+app.get('/api/consultant/availability', authenticateToken, (req, res) => {
+  db.query(
+      'SELECT * FROM availability WHERE consultor_id = ? AND data_disponivel >= CURRENT_DATE ORDER BY data_disponivel, hora_disponivel',
+      [req.user.id],
+      (err, results) => {
+          if (err) {
+              console.error('Erro ao buscar disponibilidade:', err);
+              return res.status(500).json({ error: 'Erro ao buscar disponibilidade' });
+          }
+          res.json(results);
+      }
+  );
+});
+
+// Rota para buscar disponibilidade por data específica
+app.get('/api/consultant/availability/:date', authenticateToken, (req, res) => {
+  db.query(
+      'SELECT * FROM availability WHERE consultor_id = ? AND data_disponivel = ? ORDER BY hora_disponivel',
+      [req.user.id, req.params.date],
+      (err, results) => {
+          if (err) {
+              console.error('Erro ao buscar horários:', err);
+              return res.status(500).json({ error: 'Erro ao buscar horários' });
+          }
+          res.json(results);
+      }
+  );
+});
+
+// Rota para salvar disponibilidade
+app.post('/api/consultant/availability', authenticateToken, (req, res) => {
+  const { date, times } = req.body;
+  
+  db.beginTransaction(err => {
+      if (err) {
+          console.error('Erro ao iniciar transação:', err);
+          return res.status(500).json({ error: 'Erro ao salvar disponibilidade' });
+      }
+
+      // Primeiro, remove a disponibilidade existente para a data
+      db.query(
+          'DELETE FROM availability WHERE consultor_id = ? AND data_disponivel = ?',
+          [req.user.id, date],
+          (err) => {
+              if (err) {
+                  return db.rollback(() => {
+                      res.status(500).json({ error: 'Erro ao atualizar disponibilidade' });
+                  });
+              }
+
+              // Se não há horários selecionados, commit a transação
+              if (!times || times.length === 0) {
+                  return db.commit(err => {
+                      if (err) {
+                          return db.rollback(() => {
+                              res.status(500).json({ error: 'Erro ao salvar disponibilidade' });
+                          });
+                      }
+                      res.json({ message: 'Disponibilidade atualizada com sucesso' });
+                  });
+              }
+
+              // Insere os novos horários
+              const values = times.map(time => [req.user.id, date, time, 'available']);
+              db.query(
+                  'INSERT INTO availability (consultor_id, data_disponivel, hora_disponivel, status) VALUES ?',
+                  [values],
+                  (err) => {
+                      if (err) {
+                          return db.rollback(() => {
+                              res.status(500).json({ error: 'Erro ao salvar disponibilidade' });
+                          });
+                      }
+
+                      db.commit(err => {
+                          if (err) {
+                              return db.rollback(() => {
+                                  res.status(500).json({ error: 'Erro ao salvar disponibilidade' });
+                              });
+                          }
+                          res.json({ message: 'Disponibilidade salva com sucesso' });
+                      });
+                  }
+              );
+          }
+      );
+  });
+});
+
+// Corrigir a rota de meetings para usar mysql em vez de pool
+app.get('/api/consultant/meetings', authenticateToken, (req, res) => {
+  const query = `
+      SELECT 
+          m.id,
+          m.data,
+          m.hora,
+          m.titulo,
+          m.descricao,
+          m.status,
+          m.tipo_reuniao,
+          m.link_reuniao,
+          u.nome as nome_cliente
+      FROM 
+          meetings m
+      INNER JOIN 
+          users u ON m.user_id = u.id
+      WHERE 
+          m.consultor_id = ?
+          AND m.data >= CURRENT_DATE
+      ORDER BY 
+          m.data ASC,
+          m.hora ASC
+  `;
+  
+  db.query(query, [req.user.id], (err, results) => {
+      if (err) {
+          console.error('Erro ao buscar reuniões:', err);
+          return res.status(500).json({ error: 'Erro ao carregar reuniões' });
+      }
+      res.json(results);
+  });
+});
+
+// Corrigir a rota de atualização de status para usar mysql
+app.put('/api/consultant/meetings/:id/status', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  
+  const query = `
+      UPDATE meetings 
+      SET status = ? 
+      WHERE id = ? AND consultor_id = ? 
+  `;
+  
+  db.query(query, [status, id, req.user.id], (err, result) => {
+      if (err) {
+          console.error('Erro ao atualizar status:', err);
+          return res.status(500).json({ error: 'Erro ao atualizar status da reunião' });
+      }
+      
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ error: 'Reunião não encontrada' });
+      }
+      
+      res.json({ message: 'Status atualizado com sucesso' });
+  });
+});
+
+
+
 // Inicialização do servidor
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     console.log(`Acesse: http://localhost:${PORT}`);
+});
+app.get('/api/consultants/count', authenticateToken, (req, res) => {
+  db.query('SELECT COUNT(*) as count FROM consultants', (err, results) => {
+      if (err) {
+          console.error('Erro ao contar consultores:', err);
+          return res.status(500).json({ error: 'Erro ao contar consultores' });
+      }
+      res.json({ count: results[0].count });
+  });
+});
+
+// Rota para resumo financeiro do período
+app.get('/api/payments/summary', authenticateToken, (req, res) => {
+  const { start, end } = req.query;
+  const query = `
+      SELECT 
+          COUNT(*) as total_payments,
+          SUM(valor_total) as total
+      FROM payments 
+      WHERE status = 'confirmado'
+      AND data_consulta BETWEEN ? AND ?
+  `;
+  
+  db.query(query, [start, end], (err, results) => {
+      if (err) {
+          console.error('Erro ao buscar resumo financeiro:', err);
+          return res.status(500).json({ error: 'Erro ao buscar resumo financeiro' });
+      }
+      res.json({
+          total_payments: results[0].total_payments,
+          total: results[0].total || 0
+      });
+  });
+});
+
+// Rota para contar usuários ativos (que têm agendamentos)
+app.get('/api/users/active', authenticateToken, (req, res) => {
+  const query = `
+      SELECT COUNT(DISTINCT email) as count 
+      FROM agendamentos 
+      WHERE data_consulta >= CURDATE()
+  `;
+  
+  db.query(query, (err, results) => {
+      if (err) {
+          console.error('Erro ao contar usuários ativos:', err);
+          return res.status(500).json({ error: 'Erro ao contar usuários ativos' });
+      }
+      res.json({ count: results[0].count });
+  });
+});
+
+// Rota para contar reuniões do mês
+app.get('/api/meetings/month-count', authenticateToken, (req, res) => {
+  const query = `
+      SELECT COUNT(*) as count 
+      FROM agendamentos 
+      WHERE YEAR(data_consulta) = YEAR(CURRENT_DATE())
+      AND MONTH(data_consulta) = MONTH(CURRENT_DATE())
+  `;
+  
+  db.query(query, (err, results) => {
+      if (err) {
+          console.error('Erro ao contar reuniões:', err);
+          return res.status(500).json({ error: 'Erro ao contar reuniões' });
+      }
+      res.json({ count: results[0].count });
+  });
+});
+
+// Rota para listar últimas reuniões
+app.get('/api/meetings/recent', authenticateToken, (req, res) => {
+  const query = `
+      SELECT 
+          a.data_consulta as data,
+          a.hora_consulta as hora,
+          c.name as consultor,
+          a.nome as cliente,
+          a.tipo_servico,
+          CASE 
+              WHEN a.data_consulta > CURDATE() THEN 'Agendada'
+              WHEN a.data_consulta = CURDATE() THEN 'Hoje'
+              ELSE 'Concluída'
+          END as status
+      FROM agendamentos a
+      LEFT JOIN consultants c ON a.consultor = c.name
+      ORDER BY a.data_consulta DESC, a.hora_consulta DESC
+      LIMIT 10
+  `;
+  
+  db.query(query, (err, results) => {
+      if (err) {
+          console.error('Erro ao buscar reuniões recentes:', err);
+          return res.status(500).json({ error: 'Erro ao buscar reuniões recentes' });
+      }
+      res.json(results);
+  });
+});
+
+// Rota para relatório financeiro por período
+app.get('/api/financial/report', authenticateToken, (req, res) => {
+  const { start_date, end_date } = req.query;
+  const query = `
+      SELECT 
+          DATE_FORMAT(data_consulta, '%Y-%m') as mes,
+          COUNT(*) as total_consultas,
+          SUM(valor_total) as receita_total,
+          AVG(valor_total) as ticket_medio
+      FROM payments
+      WHERE status = 'confirmado'
+      AND data_consulta BETWEEN ? AND ?
+      GROUP BY DATE_FORMAT(data_consulta, '%Y-%m')
+      ORDER BY mes DESC
+  `;
+  
+  db.query(query, [start_date, end_date], (err, results) => {
+      if (err) {
+          console.error('Erro ao gerar relatório financeiro:', err);
+          return res.status(500).json({ error: 'Erro ao gerar relatório financeiro' });
+      }
+      res.json(results);
+  });
 });

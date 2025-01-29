@@ -183,3 +183,139 @@ function showError(message) {
     console.error(message);
     alert(message);
 }
+async function loadDashboardData() {
+    try {
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        // Carregar contagem de consultores
+        const consultoresResponse = await fetch('http://localhost:3000/api/consultants/count', { headers });
+        const consultoresData = await consultoresResponse.json();
+        document.getElementById('total-consultores').textContent = consultoresData.count;
+
+        // Carregar dados financeiros do mês atual
+        const hoje = new Date();
+        const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+
+        const financialResponse = await fetch(`http://localhost:3000/api/payments/summary?start=${primeiroDiaMes.toISOString()}&end=${ultimoDiaMes.toISOString()}`, { headers });
+        const financialData = await financialResponse.json();
+        document.getElementById('receita-mensal').textContent = `€ ${financialData.total.toFixed(2)}`;
+
+        // Carregar contagem de clientes ativos
+        const clientesResponse = await fetch('http://localhost:3000/api/users/active', { headers });
+        const clientesData = await clientesResponse.json();
+        document.getElementById('clientes-ativos').textContent = clientesData.count;
+
+        // Carregar reuniões do mês
+        const reunioesResponse = await fetch(`http://localhost:3000/api/meetings/month-count`, { headers });
+        const reunioesData = await reunioesResponse.json();
+        document.getElementById('total-reunioes').textContent = reunioesData.count;
+
+    } catch (error) {
+        console.error('Erro ao carregar dados do dashboard:', error);
+    }
+}
+
+// Função para carregar lista de consultores
+async function loadConsultores() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3000/api/consultants', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const consultores = await response.json();
+        
+        const tbody = document.querySelector('#lista-consultores tbody');
+        tbody.innerHTML = ''; // Limpa a tabela atual
+        
+        consultores.forEach(consultor => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${consultor.name}</td>
+                <td>${consultor.especialidade}</td>
+                <td>€ ${consultor.valor_hora.toFixed(2)}</td>
+                <td>
+                    <button class="btn btn-primary" onclick="editConsultor(${consultor.id})">Editar</button>
+                    <button class="btn btn-danger" onclick="deleteConsultor(${consultor.id})">Excluir</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Atualizar também o select de consultores na seção de reuniões
+        const selectConsultor = document.getElementById('consultant-filter');
+        if (selectConsultor) {
+            selectConsultor.innerHTML = '<option value="">Todos os Consultores</option>';
+            consultores.forEach(consultor => {
+                selectConsultor.innerHTML += `
+                    <option value="${consultor.id}">${consultor.name}</option>
+                `;
+            });
+        }
+
+    } catch (error) {
+        console.error('Erro ao carregar consultores:', error);
+    }
+}
+
+// Modificar a função handleConsultantSubmit para recarregar os dados
+async function handleConsultantSubmit(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    
+    try {
+        const consultantData = {
+            name: formData.get('nome'),
+            email: formData.get('email'),
+            password: formData.get('senha'),
+            especialidade: formData.get('especialidade'),
+            valor_hora: Number(formData.get('valor_hora')),
+            linkedin_url: formData.get('linkedin_url')
+        };
+
+        const response = await fetch('http://localhost:3000/auth/consultants', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(consultantData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erro ao criar consultor');
+        }
+
+        alert('Consultor criado com sucesso!');
+        closeModal('consultant-modal');
+        
+        // Recarregar dados após criar novo consultor
+        await loadDashboardData();
+        await loadConsultores();
+        
+    } catch (error) {
+        console.error('Erro:', error);
+        alert(error.message);
+    }
+}
+
+// Carregar dados quando a página carregar
+document.addEventListener('DOMContentLoaded', async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/index.html';
+        return;
+    }
+
+    await loadDashboardData();
+    await loadConsultores();
+});
