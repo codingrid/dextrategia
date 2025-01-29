@@ -171,7 +171,7 @@
             </div>
             <div class="nav-links">
                 <span>Bem-vindo, Usuário!</span>
-                <a href="http://localhost:3000/index.html" id="logout">Sair</a>
+                <button class="logout-btn" onclick="logout()">Sair</button>
             </div>
         </nav>
     </div>
@@ -280,6 +280,22 @@
                 });
             });
         });
+
+        async function logout() {
+    try {
+        await fetch('http://localhost:3000/api/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+    } finally {
+        localStorage.removeItem('token');
+        window.location.href = '/index.html';
+    }
+}
     </script>
 </body>
 </html>

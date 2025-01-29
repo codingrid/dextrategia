@@ -6,7 +6,6 @@
     <title>Dashboard Administrativo</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="admin.css">
-   
 </head>
 <body>
     <div class="dashboard-container">
@@ -51,202 +50,141 @@
             </nav>
         </aside>
 
-         <!-- Main Content -->
-    <main class="main-content">
-        <!-- Header -->
-        <header class="header">
-            <h1>Dashboard Administrativo</h1>
-            <div class="user-info">
-                <span>Bem-vindo, Admin</span>
-                <button class="btn btn-primary" onclick="showConsultantForm()">
-                    <i class="fas fa-user-plus"></i> Novo Consultor
-                </button>
-                <button class="btn btn-primary" onclick="showAdminForm()">
-                    <i class="fas fa-user-plus"></i> Novo Admin
-                </button>
-                <a href="http://localhost:3000/frontend/index.html" id="logout">Sair</a>
-            </div>
-        </header>
-
-        <!-- Dashboard Section -->
-        <section id="dashboard" class="active">
-            <!-- Cards com métricas -->
-            <div class="cards-grid">
-                <div class="card">
-                    <h3>Total de Consultores</h3>
-                    <p class="number" id="total-consultores">124</p>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1>Dashboard Administrativo</h1>
+                <div class="user-info">
+                    <span>Bem-vindo, Admin</span>
+                    <button class="btn btn-primary" onclick="showConsultantForm()">
+                        <i class="fas fa-user-plus"></i> Novo Consultor
+                    </button>
+                    <button class="btn btn-primary" onclick="showAdminForm()">
+                        <i class="fas fa-user-plus"></i> Novo Admin
+                    </button>
+                    <button class="logout-btn" onclick="logout()">Sair</button>
                 </div>
-                <div class="card">
-                    <h3>Reuniões este mês</h3>
-                    <p class="number" id="total-reunioes">58</p>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="active">
+                <!-- Cards com métricas -->
+                <div class="cards-grid">
+                    <div class="card">
+                        <h3>Total de Consultores</h3>
+                        <p class="number" id="total-consultores">0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Reuniões este mês</h3>
+                        <p class="number" id="total-reunioes">0</p>
+                    </div>
+                    <div class="card">
+                        <h3>Receita Mensal</h3>
+                        <p class="number" id="receita-mensal">€ 0,00</p>
+                    </div>
+                    <div class="card">
+                        <h3>Clientes Ativos</h3>
+                        <p class="number" id="clientes-ativos">0</p>
+                    </div>
                 </div>
-                <div class="card">
-                    <h3>Receita Mensal</h3>
-                    <p class="number" id="receita-mensal">€ 128.216,00</p>
+
+                <!-- Reuniões Recentes -->
+                <div class="table-container">
+                    <h3>Últimas Reuniões</h3>
+                    <table id="ultimas-reunioes">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Consultor</th>
+                                <th>Cliente</th>
+                                <th>Status</th>
+                                <th>Tipo de Serviço</th>
+                                <th>Tipo de Reunião</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dados serão inseridos via JavaScript -->
+                        </tbody>
+                    </table>
                 </div>
-                <div class="card">
-                    <h3>Clientes Ativos</h3>
-                    <p class="number" id="clientes-ativos">82</p>
+            </section>
+
+            <!-- Consultores Section -->
+            <section id="consultores" style="display: none;">
+                <div class="section-header">
+                    <h2>Gerenciar Consultores</h2>
+                    <button class="btn btn-primary" onclick="showConsultantForm()">
+                        <i class="fas fa-plus"></i> Novo Consultor
+                    </button>
                 </div>
-            </div>
 
-            
-
-            <!-- Reuniões Recentes -->
-            <div class="table-container">
-                <h3>Últimas Reuniões</h3>
-                <table id="recent-meetings">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Consultor</th>
-                            <th>Cliente</th>
-                            <th>Status</th>
-                           
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>2023-04-15</td>
-                            <td>João Silva</td>
-                            <td>Empresa XYZ</td>
-                            <td>Concluída</td>
-                          
-                        </tr>
-                        <tr>
-                            <td>2023-04-10</td>
-                            <td>Maria Oliveira</td>
-                            <td>Startup Inc.</td>
-                            <td>Agendada</td>
-                            
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Consultores Section -->
-        <section id="consultores" style="display: none;">
-            <div class="section-header">
-                <h2>Gerenciar Consultores</h2>
-                <button class="btn btn-primary" onclick="showConsultantForm()">
-                    <i class="fas fa-plus"></i> Novo Consultor
-                </button>
-            </div>
-
-            <div class="table-container">
-                <table id="lista-consultores">
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>Especialidade</th>
-                            <th>Valor/Hora</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>João Silva</td>
-                            <td>Estratégia</td>
-                            <td>€ 100,00</td>
-                            <td>
-                                <button class="btn btn-primary">Editar</button>
-                                <button class="btn btn-danger">Excluir</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Maria Oliveira</td>
-                            <td>Marketing</td>
-                            <td>€ 90,00</td>
-                            <td>
-                                <button class="btn btn-primary">Editar</button>
-                                <button class="btn btn-danger">Excluir</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Financeiro Section -->
-        <section id="financeiro" style="display: none;">
-            <div class="section-header">
-                <h2>Relatórios Financeiros</h2>
-                <div class="filters">
-                    <input type="month" id="month-filter">
-                    <button class="btn btn-primary" onclick="generateReport()">Gerar Relatório</button>
+                <div class="table-container">
+                    <table id="lista-consultores">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Especialidade</th>
+                                <th>Valor/Hora</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dados serão inseridos via JavaScript -->
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+            </section>
 
-            <div id="financial-reports">
-                <!-- Relatórios serão inseridos via JavaScript -->
-                <div class="report-card">
-                    <h3>Relatório Mensal - Abril 2023</h3>
-                    <p>Receita Total: € 128.216,00</p>
-                    <p>Despesas Totais: € 91.172,50</p>
-                    <p>Lucro Líquido: € 37.043,50</p>
+            <!-- Financeiro Section -->
+            <section id="financeiro" style="display: none;">
+                <div class="section-header">
+                    <h2>Relatórios Financeiros</h2>
+                    <div class="filters">
+                        <input type="month" id="month-filter">
+                        <button class="btn btn-primary" onclick="generateReport()">Gerar Relatório</button>
+                    </div>
                 </div>
-            </div>
-        </section>
 
-        <!-- Reuniões Section -->
-        <section id="reunioes" style="display: none;">
-            <div class="section-header">
-                <h2>Gestão de Reuniões</h2>
-                <div class="filters">
-                    <select id="consultant-filter">
-                        <option value="">Todos os Consultores</option>
-                        <option value="joao-silva">João Silva</option>
-                        <option value="maria-oliveira">Maria Oliveira</option>
-                    </select>
-                    <input type="date" id="date-filter">
+                <div id="financial-reports">
+                    <!-- Relatórios serão inseridos via JavaScript -->
                 </div>
-            </div>
+            </section>
 
-            <div class="table-container">
-                <table id="meetings-table">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Consultor</th>
-                            <th>Cliente</th>
-                            <th>Documentos</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>2023-04-15</td>
-                            <td>João Silva</td>
-                            <td>Empresa XYZ</td>
-                            <td>
-                                <a href="#" class="btn btn-primary">Visualizar</a>
-                            </td>
-                            <td>
-                                <button class="btn btn-primary">Editar</button>
-                                <button class="btn btn-danger">Excluir</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>2023-04-10</td>
-                            <td>Maria Oliveira</td>
-                            <td>Startup Inc.</td>
-                            <td>
-                                <a href="#" class="btn btn-primary">Visualizar</a>
-                            </td>
-                            <td>
-                                <button class="btn btn-primary">Editar</button>
-                                <button class="btn btn-danger">Excluir</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </main>
-</div>
+            <!-- Reuniões Section -->
+            <section id="reunioes" style="display: none;">
+                <div class="section-header">
+                    <h2>Gestão de Reuniões</h2>
+                    <div class="filters">
+                        <select id="consultant-filter">
+                            <option value="">Todos os Consultores</option>
+                            <!-- Opções serão inseridas via JavaScript -->
+                        </select>
+                        <input type="date" id="date-filter">
+                    </div>
+                </div>
 
-
+                <div class="table-container">
+                    <table id="meetings-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Consultor</th>
+                                <th>Cliente</th>
+                                <th>Tipo de Serviço</th>
+                                <th>Tipo de Reunião</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dados serão inseridos via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
     <script src="/frontend/admin.js"></script>

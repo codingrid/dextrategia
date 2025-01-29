@@ -4,185 +4,43 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = '/frontend/login.html';
         return;
     }
+
+    // Carrega todos os dados iniciais
+    loadDashboardData();
+    loadConsultores();
+    loadUltimasReunioes();
+
+    // Adiciona listeners para navegação
+    setupNavigation();
 });
 
-function showConsultantForm() {
-    const modalHtml = `
-        <div class="modal" id="consultant-modal">
-            <div class="modal-content">
-                <h2>Novo Consultor</h2>
-                <form id="consultant-form">
-                    <div class="form-group">
-                        <label>Nome:</label>
-                        <input type="text" name="nome" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Email:</label>
-                        <input type="email" name="email" 
-                               pattern=".*@consult\\.admin$"
-                               placeholder="exemplo@consult.admin"
-                               title="O email deve terminar com @consult.admin"
-                               required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Senha:</label>
-                        <input type="password" name="senha" minlength="6" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Especialidade:</label>
-                        <input type="text" name="especialidade" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Valor/Hora (R$):</label>
-                        <input type="number" name="valor_hora" step="0.01" min="0" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>LinkedIn URL:</label>
-                        <input type="url" name="linkedin_url">
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Criar Consultor</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeModal('consultant-modal')">Cancelar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `;
-
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    document.getElementById('consultant-form').addEventListener('submit', handleConsultantSubmit);
-}
-
-async function handleConsultantSubmit(event) {
-    event.preventDefault();
-    
-    const form = event.target;
-    const formData = new FormData(form);
-    
-    try {
-        const consultantData = {
-            name: formData.get('nome'),
-            email: formData.get('email'),
-            password: formData.get('senha'),
-            especialidade: formData.get('especialidade'),
-            valor_hora: Number(formData.get('valor_hora')),
-            linkedin_url: formData.get('linkedin_url')
-        };
-
-        if (!consultantData.email.endsWith('@consult.admin')) {
-            throw new Error('Email deve terminar com @consult.admin');
-        }
-
-        console.log('Dados a serem enviados:', consultantData);
-
-        const response = await fetch('http://localhost:3000/auth/consultants', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(consultantData)
+// Setup da navegação
+function setupNavigation() {
+    const menuItems = document.querySelectorAll('.sidebar nav a');
+    menuItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = item.getAttribute('href').substring(1);
+            showSection(targetId);
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Erro ao criar consultor');
-        }
-
-        alert('Consultor criado com sucesso!');
-        closeModal('consultant-modal');
-        
-    } catch (error) {
-        console.error('Erro:', error);
-        alert(error.message);
-    }
+    });
 }
 
-// Função para abrir modal de novo admin
-function showAdminForm() {
-    console.log('Abrindo modal de admin');
-    const modalHtml = `
-        <div class="modal" id="admin-modal">
-            <div class="modal-content">
-                <h2>Novo Administrador</h2>
-                <form id="admin-form">
-                    <div class="form-group">
-                        <label>Nome:</label>
-                        <input type="text" name="nome" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Email:</label>
-                        <input type="email" name="email" 
-                               pattern=".*@admin\\.com$"
-                               placeholder="exemplo@admin.com"
-                               title="O email deve terminar com @admin.com"
-                               required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Senha:</label>
-                        <input type="password" name="senha" minlength="6" required>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Criar Administrador</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeModal('admin-modal')">Cancelar</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `;
+// Mostra a seção selecionada
+function showSection(sectionId) {
+    document.querySelectorAll('section').forEach(section => {
+        section.style.display = 'none';
+    });
+    document.getElementById(sectionId).style.display = 'block';
 
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    document.getElementById('admin-form').addEventListener('submit', handleAdminSubmit);
+    // Atualiza o item ativo no menu
+    document.querySelectorAll('.sidebar nav li').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector(`a[href="#${sectionId}"]`).parentElement.classList.add('active');
 }
 
-async function handleAdminSubmit(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    
-    try {
-        const response = await fetch('http://localhost:3000/auth/admin', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({
-                nome: formData.get('nome'),
-                email: formData.get('email'),
-                senha: formData.get('senha')
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error('Erro ao criar administrador');
-        }
-
-        alert('Administrador criado com sucesso!');
-        closeModal('admin-modal');
-    } catch (error) {
-        showError('Erro ao criar administrador: ' + error.message);
-    }
-}
-
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.remove();
-    }
-}
-
-function showError(message) {
-    console.error(message);
-    alert(message);
-}
+// Função para carregar dados do dashboard
 async function loadDashboardData() {
     try {
         const token = localStorage.getItem('token');
@@ -211,7 +69,7 @@ async function loadDashboardData() {
         document.getElementById('clientes-ativos').textContent = clientesData.count;
 
         // Carregar reuniões do mês
-        const reunioesResponse = await fetch(`http://localhost:3000/api/meetings/month-count`, { headers });
+        const reunioesResponse = await fetch('http://localhost:3000/api/meetings/month-count', { headers });
         const reunioesData = await reunioesResponse.json();
         document.getElementById('total-reunioes').textContent = reunioesData.count;
 
@@ -220,7 +78,7 @@ async function loadDashboardData() {
     }
 }
 
-// Função para carregar lista de consultores
+// Função para carregar e exibir consultores
 async function loadConsultores() {
     try {
         const token = localStorage.getItem('token');
@@ -264,7 +122,113 @@ async function loadConsultores() {
     }
 }
 
-// Modificar a função handleConsultantSubmit para recarregar os dados
+// Função para carregar últimas reuniões
+async function loadUltimasReunioes() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3000/api/meetings/recent', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) throw new Error('Erro ao carregar reuniões');
+
+        const reunioes = await response.json();
+        const tableBody = document.querySelector('#ultimas-reunioes tbody');
+
+        if (!reunioes || reunioes.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center">Nenhuma reunião encontrada</td>
+                </tr>
+            `;
+            return;
+        }
+
+        tableBody.innerHTML = reunioes.map(reuniao => {
+            // Formata a data para o padrão brasileiro
+            const data = new Date(reuniao.data_consulta).toLocaleDateString('pt-BR');
+            
+            return `
+                <tr>
+                    <td>${data}</td>
+                    <td>${reuniao.consultor}</td>
+                    <td>${reuniao.cliente}</td>
+                    <td><span class="status-badge ${reuniao.status.toLowerCase()}">${reuniao.status}</span></td>
+                    <td>${reuniao.tipo_servico}</td>
+                    <td>${reuniao.tipo_reuniao}</td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Erro ao carregar reuniões:', error);
+        document.querySelector('#ultimas-reunioes tbody').innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-danger">
+                    Erro ao carregar reuniões. Por favor, tente novamente.
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Funções para modal de novo consultor
+function showConsultantForm() {
+    const modalHtml = `
+        <div class="modal" id="consultant-modal">
+            <div class="modal-content">
+                <h2>Novo Consultor</h2>
+                <form id="consultant-form">
+                    <div class="form-group">
+                        <label>Nome:</label>
+                        <input type="text" name="nome" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" name="email" 
+                               pattern=".*@consult\\.admin$"
+                               placeholder="exemplo@consult.admin"
+                               title="O email deve terminar com @consult.admin"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Senha:</label>
+                        <input type="password" name="senha" minlength="6" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Especialidade:</label>
+                        <input type="text" name="especialidade" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Valor/Hora (€):</label>
+                        <input type="number" name="valor_hora" step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>LinkedIn URL:</label>
+                        <input type="url" name="linkedin_url">
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Criar Consultor</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('consultant-modal')">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('consultant-form').addEventListener('submit', handleConsultantSubmit);
+}
+
+// Handler do formulário de novo consultor
 async function handleConsultantSubmit(event) {
     event.preventDefault();
     
@@ -280,6 +244,10 @@ async function handleConsultantSubmit(event) {
             valor_hora: Number(formData.get('valor_hora')),
             linkedin_url: formData.get('linkedin_url')
         };
+
+        if (!consultantData.email.endsWith('@consult.admin')) {
+            throw new Error('Email deve terminar com @consult.admin');
+        }
 
         const response = await fetch('http://localhost:3000/auth/consultants', {
             method: 'POST',
@@ -298,7 +266,7 @@ async function handleConsultantSubmit(event) {
         alert('Consultor criado com sucesso!');
         closeModal('consultant-modal');
         
-        // Recarregar dados após criar novo consultor
+        // Recarrega os dados
         await loadDashboardData();
         await loadConsultores();
         
@@ -308,14 +276,135 @@ async function handleConsultantSubmit(event) {
     }
 }
 
-// Carregar dados quando a página carregar
-document.addEventListener('DOMContentLoaded', async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/index.html';
-        return;
+// Função para modal de novo admin
+function showAdminForm() {
+    const modalHtml = `
+        <div class="modal" id="admin-modal">
+            <div class="modal-content">
+                <h2>Novo Administrador</h2>
+                <form id="admin-form">
+                    <div class="form-group">
+                        <label>Nome:</label>
+                        <input type="text" name="nome" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" name="email" 
+                               pattern=".*@admin\\.com$"
+                               placeholder="exemplo@admin.com"
+                               title="O email deve terminar com @admin.com"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Senha:</label>
+                        <input type="password" name="senha" minlength="6" required>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Criar Administrador</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('admin-modal')">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('admin-form').addEventListener('submit', handleAdminSubmit);
+}
+
+// Handler do formulário de novo admin
+async function handleAdminSubmit(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    try {
+        const response = await fetch('http://localhost:3000/auth/admin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+                nome: formData.get('nome'),
+                email: formData.get('email'),
+                senha: formData.get('senha')
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Erro ao criar administrador');
+        }
+
+        alert('Administrador criado com sucesso!');
+        closeModal('admin-modal');
+    } catch (error) {
+        showError('Erro ao criar administrador: ' + error.message);
+    }
+}
+
+// Função para fechar modais
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Função para mostrar erros
+function showError(message) {
+    console.error(message);
+    alert(message);
+}
+
+// Adiciona estilos para os status das reuniões
+const style = document.createElement('style');
+style.textContent = `
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        display: inline-block;
     }
 
-    await loadDashboardData();
-    await loadConsultores();
-});
+    .status-badge.agendada {
+        background-color: #ebf5ff;
+        color: #1a56db;
+    }
+
+    .status-badge.hoje {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-badge.concluida {
+        background-color: #def7ec;
+        color: #03543f;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .text-danger {
+        color: #dc2626;
+    }
+`;
+// Faz logout
+async function logout() {
+    try {
+        await fetch('http://localhost:3000/api/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+    } finally {
+        localStorage.removeItem('token');
+        window.location.href = '/index.html';
+    }
+}

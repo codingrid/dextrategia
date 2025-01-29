@@ -581,34 +581,8 @@ app.get('/api/meetings/month-count', authenticateToken, (req, res) => {
   });
 });
 
-// Rota para listar últimas reuniões
-app.get('/api/meetings/recent', authenticateToken, (req, res) => {
-  const query = `
-      SELECT 
-          a.data_consulta as data,
-          a.hora_consulta as hora,
-          c.name as consultor,
-          a.nome as cliente,
-          a.tipo_servico,
-          CASE 
-              WHEN a.data_consulta > CURDATE() THEN 'Agendada'
-              WHEN a.data_consulta = CURDATE() THEN 'Hoje'
-              ELSE 'Concluída'
-          END as status
-      FROM agendamentos a
-      LEFT JOIN consultants c ON a.consultor = c.name
-      ORDER BY a.data_consulta DESC, a.hora_consulta DESC
-      LIMIT 10
-  `;
-  
-  db.query(query, (err, results) => {
-      if (err) {
-          console.error('Erro ao buscar reuniões recentes:', err);
-          return res.status(500).json({ error: 'Erro ao buscar reuniões recentes' });
-      }
-      res.json(results);
-  });
-});
+
+
 
 // Rota para relatório financeiro por período
 app.get('/api/financial/report', authenticateToken, (req, res) => {
@@ -633,4 +607,70 @@ app.get('/api/financial/report', authenticateToken, (req, res) => {
       }
       res.json(results);
   });
+});
+
+// Rota para listar reuniões no dashboard admin
+app.get('/api/meetings/recent', authenticateToken, (req, res) => {
+    const query = `
+        SELECT 
+            a.data_consulta,
+            a.hora_consulta,
+            a.consultor,
+            a.nome as cliente,
+            a.tipo_servico,
+            a.tipo_reuniao,
+            CASE 
+                WHEN a.data_consulta > CURDATE() THEN 'Agendada'
+                WHEN a.data_consulta = CURDATE() THEN 'Hoje'
+                ELSE 'Concluída'
+            END as status
+        FROM 
+            agendamentos a
+        WHERE
+            a.data_consulta IS NOT NULL
+        ORDER BY 
+            a.data_consulta DESC, 
+            a.hora_consulta DESC
+        LIMIT 10
+    `;
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Erro ao buscar reuniões:', err);
+            return res.status(500).json({ error: 'Erro ao carregar reuniões' });
+        }
+        
+        // Log para debug
+        console.log('Reuniões encontradas:', results);
+        
+        res.json(results);
+    });
+});
+
+
+app.post('/auth/admin', authenticateToken, async (req, res) => {
+    try {
+        const { nome, email, senha } = req.body;
+        
+        if (!email.endsWith('@admin.com')) {
+            return res.status(400).json({ error: 'Email deve terminar com @admin.com' });
+        }
+
+        const hashedPassword = await bcrypt.hash(senha, 10);
+        
+        db.query(
+            'INSERT INTO users (name, email, password, user_type) VALUES (?, ?, ?, "admin")',
+            [nome, email, hashedPassword],
+            (err, result) => {
+                if (err) {
+                    console.error('Erro ao criar administrador:', err);
+                    return res.status(500).json({ error: err.message });
+                }
+                res.status(201).json({ message: 'Administrador criado com sucesso' });
+            }
+        );
+    } catch (error) {
+        console.error('Erro ao criar administrador:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
