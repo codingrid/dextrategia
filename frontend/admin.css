@@ -43,7 +43,29 @@ body {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: 20px;
 }
+.logout-btn {
+    background: linear-gradient(to right, #AEE2FF, #FFFFFF); /* Azul bebê para branco */
+    border: none;
+    border-radius: 25px; /* Botão arredondado */
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #005792; /* Azul escuro para contraste */
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.2); /* Sombra suave */
+}
 
+.logout-btn:hover {
+    background: linear-gradient(to right, #9DD8FF, #E0F7FF); /* Tom mais claro ao passar o mouse */
+    transform: scale(1.05); /* Efeito de crescimento */
+    box-shadow: 3px 6px 12px rgba(0, 0, 0, 0.25);
+}
+
+.logout-btn:active {
+    transform: scale(0.95); /* Efeito de clique */
+    box-shadow: 1px 2px 8px rgba(0, 0, 0, 0.15);
+}
 .sidebar .logo img {
     max-width: 150px;
     height: auto;

@@ -10,402 +10,675 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const path = require('path');
-
+const nodemailer = require('nodemailer');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-const db = mysql.createConnection({
-  host: '127.0.0.1',
-  user: 'root',
-  password: '',
-  database: 'dextrategia'
-});
-db.connect((err) => {
-  if (err) {
-      console.error('Erro ao conectar ao banco de dados:', err);
-      return;
-  }
-  console.log('Conectado ao banco de dados.');
-});
-
-
-
-
-
-
-// Middlewares
+// Middlewares básicos
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
+// Configuração do Banco de Dados
+const db = mysql.createConnection({
+    host: '127.0.0.1',
+    user: 'root',
+    password: '',
+    database: 'dextrategia'
+});
+
+db.connect((err) => {
+    if (err) {
+        console.error('Erro ao conectar ao banco de dados:', err);
+        return;
+    }
+    console.log('Conectado ao banco de dados.');
+});
+
+// Configuração do nodemailer
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'ingridlimapt@gmail.com',
+        pass: 'nhdo xpoy sdwt ouck' // Substitua pela senha de app do Gmail
+    }
+});
 
 // Middleware de autenticação
 const authenticateToken = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
-  if (!token) return res.sendStatus(401);
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) return res.sendStatus(401);
 
-  jwt.verify(token, 'seu_secret_key', (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
-    next();
-  });
+    jwt.verify(token, 'seu_secret_key', (err, user) => {
+        if (err) return res.sendStatus(403);
+        req.user = user;
+        next();
+    });
 };
 
-app.get('/api/consultants', authenticateToken, (req, res) => {
-  db.query(
-      'SELECT id, name, email, especialidade, valor_hora, linkedin_url FROM consultants',
-      (err, results) => {
-          if (err) {
-              console.error('Erro ao listar consultores:', err);
-              return res.status(500).json({ error: 'Erro ao listar consultores' });
-          }
-          res.json(results);
-      }
-  );
-});
-
-// Rota para criar consultor
-app.post('/auth/consultants', async (req, res) => {
-  try {
-      const { name, email, password, especialidade, valor_hora, linkedin_url } = req.body;
-      
-      if (!email.endsWith('@consult.admin')) {
-          return res.status(400).json({ error: 'Email deve terminar com @consult.admin' });
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      
-      // Query simplificada sem user_id
-      db.query(
-          'INSERT INTO consultants (name, email, password, especialidade, valor_hora, linkedin_url) VALUES (?, ?, ?, ?, ?, ?)',
-          [name, email, hashedPassword, especialidade, valor_hora, linkedin_url],
-          (err, result) => {
-              if (err) {
-                  console.error('Erro ao criar consultor:', err);
-                  return res.status(500).json({ error: err.message });
-              }
-              res.status(201).json({ message: 'Consultor criado com sucesso' });
-          }
-      );
-  } catch (error) {
-      console.error('Erro ao criar consultor:', error);
-      res.status(500).json({ error: error.message });
-  }
-});
-
-
-
-
-// Rota PUT - Atualizar consultor
-app.put('/api/consultants/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  const { name, especialidade, valor_hora, linkedin_url, pacotes_horas, password } = req.body;
-
-  try {
-      let query = 'UPDATE consultants SET name = ?, especialidade = ?, valor_hora = ?, linkedin_url = ?, pacotes_horas = ?'; // Mudado de users para consultants
-      let params = [name, especialidade, valor_hora, linkedin_url, JSON.stringify(pacotes_horas)];
-
-      if (password) {
-          const hashedPassword = await bcrypt.hash(password, 10);
-          query += ', password = ?';
-          params.push(hashedPassword);
-      }
-
-      query += ' WHERE id = ?'; // Removido o filtro de user_type
-      params.push(id);
-
-      db.query(query, params, (err, result) => {
-          if (err) {
-              console.error('Erro ao atualizar consultor:', err);
-              return res.status(500).json({ error: 'Erro ao atualizar consultor' });
-          }
-          res.json({ message: 'Consultor atualizado com sucesso' });
-      });
-  } catch (error) {
-      console.error('Erro ao atualizar consultor:', error);
-      res.status(500).json({ error: 'Erro ao atualizar consultor' });
-  }
-});
-
-// Rota DELETE - Excluir consultor
-app.delete('/api/consultants/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  
-  db.query(
-      'DELETE FROM consultants WHERE id = ?', // Mudado de users para consultants e removido user_type
-      [id],
-      (err, result) => {
-          if (err) {
-              console.error('Erro ao excluir consultor:', err);
-              return res.status(500).json({ error: 'Erro ao excluir consultor' });
-          }
-          res.json({ message: 'Consultor excluído com sucesso' });
-      }
-  );
-});
-
-
-
-
-
-
-
-
-
-
-app.post('/api/admin/create', authenticateToken, async (req, res) => {
-    const { name, email, password } = req.body;
-
-    if (!email.endsWith('@admin.com')) {
-        return res.status(400).json({ error: 'Email deve terminar com @admin.com' });
-    }
-
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
+// Rotas de Autenticação
+app.post('/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+    
+    db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
         
-        db.query(
-            'INSERT INTO users (name, email, password, is_admin, user_type) VALUES (?, ?, ?, 1, "admin")',
-            [name, email, hashedPassword],
-            (err, result) => {
-                if (err) {
-                    console.error('Erro ao criar administrador:', err);
-                    return res.status(500).json({ error: 'Erro ao criar administrador' });
-                }
-                res.status(201).json({ 
-                    id: result.insertId,
-                    name,
-                    email
-                });
-            }
+        if (results.length === 0) {
+            db.query('SELECT * FROM consultants WHERE email = ?', [email], async (err, consultResults) => {
+                if (err) return res.status(500).json({ error: err.message });
+                if (consultResults.length === 0) return res.status(401).json({ error: 'Usuário não encontrado' });
+
+                const consultant = consultResults[0];
+                const validPassword = await bcrypt.compare(password, consultant.password);
+                if (!validPassword) return res.status(401).json({ error: 'Senha inválida' });
+
+                const token = jwt.sign(
+                    { id: consultant.id, email: consultant.email, type: 'consultant' }, 
+                    'seu_secret_key'
+                );
+                res.json({ token, user_type: 'consultant' });
+            });
+            return;
+        }
+
+        const user = results[0];
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) return res.status(401).json({ error: 'Senha inválida' });
+
+        const token = jwt.sign(
+            { id: user.id, email: user.email, type: user.user_type }, 
+            'seu_secret_key'
         );
-    } catch (error) {
-        console.error('Erro ao criar administrador:', error);
-        res.status(500).json({ error: 'Erro ao criar administrador' });
-    }
+        res.json({ token, user_type: user.user_type });
+    });
 });
 
-app.get('/api/meetings/recent', authenticateToken, (req, res) => {
-    const fifteenDaysAgo = new Date();
-    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+app.post('/auth/register', async (req, res) => {
+    const { name, email, password } = req.body;
+    
+    if (!email.match(/@(gmail\.com|hotmail\.com|outlook\.com)$/)) {
+        return res.status(400).json({ error: 'Domínio de email não permitido' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
     
     db.query(
-        `SELECT p.*, u.name as consultant_name 
-         FROM payments p 
-         JOIN users u ON p.consultor = u.name 
-         WHERE p.data_consulta >= ?
-         ORDER BY p.data_consulta DESC`,
-        [fifteenDaysAgo.toISOString().split('T')[0]],
+        'INSERT INTO users (name, email, password, user_type) VALUES (?, ?, ?, "user")',
+        [name, email, hashedPassword],
+        (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ message: 'Usuário registrado com sucesso' });
+        }
+    );
+});
+
+// Rotas de Consultores
+app.get('/api/consultants', authenticateToken, (req, res) => {
+    db.query(
+        'SELECT id, name, email, especialidade, valor_hora, linkedin_url FROM consultants',
         (err, results) => {
             if (err) {
-                console.error('Erro ao listar reuniões:', err);
-                return res.status(500).json({ error: 'Erro ao listar reuniões' });
+                console.error('Erro ao listar consultores:', err);
+                return res.status(500).json({ error: 'Erro ao listar consultores' });
             }
             res.json(results);
         }
     );
 });
 
+app.post('/auth/consultants', async (req, res) => {
+    try {
+        const { name, email, password, especialidade, valor_hora, linkedin_url } = req.body;
+        
+        if (!email.endsWith('@consult.admin')) {
+            return res.status(400).json({ error: 'Email deve terminar com @consult.admin' });
+        }
 
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        db.query(
+            'INSERT INTO consultants (name, email, password, especialidade, valor_hora, linkedin_url) VALUES (?, ?, ?, ?, ?, ?)',
+            [name, email, hashedPassword, especialidade, valor_hora, linkedin_url],
+            (err, result) => {
+                if (err) {
+                    console.error('Erro ao criar consultor:', err);
+                    return res.status(500).json({ error: err.message });
+                }
+                res.status(201).json({ message: 'Consultor criado com sucesso' });
+            }
+        );
+    } catch (error) {
+        console.error('Erro ao criar consultor:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
+// Rotas de Agendamentos
+app.post('/api/agendamentos', async (req, res) => {
+    const {
+        nome,
+        email,
+        tipo_servico,
+        consultor,
+        data_consulta,
+        hora_consulta,
+        tipo_reuniao,
+        descricao,
+        valor
+    } = req.body;
 
+    try {
+        const query = `
+            INSERT INTO agendamentos 
+            (nome, email, tipo_servico, consultor, data_consulta, 
+             hora_consulta, tipo_reuniao, descricao, valor) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
 
+        db.query(query, [
+            nome, email, tipo_servico, consultor, data_consulta,
+            hora_consulta, tipo_reuniao, descricao, valor
+        ], (err, result) => {
+            if (err) {
+                console.error('Erro ao salvar agendamento:', err);
+                return res.status(500).json({ error: 'Erro ao salvar agendamento' });
+            }
+            
+            res.json({ 
+                success: true, 
+                id: result.insertId,
+                message: 'Agendamento criado com sucesso'
+            });
+        });
+    } catch (error) {
+        console.error('Erro:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
+// Rota de Pagamentos
+app.post('/api/payments', (req, res) => {
+    const {
+        nome,
+        email,
+        servico,
+        valor_total,
+        forma_pagamento,
+        consultor,
+        data_consulta,
+        hora_consulta,
+        agendamento_id
+    } = req.body;
+
+    const query = `
+        INSERT INTO payments 
+        (nome, email, servico, valor_total, forma_pagamento, consultor, 
+         data_consulta, hora_consulta, agendamento_id, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmado')
+    `;
+
+    db.query(query, [
+        nome,
+        email,
+        servico,
+        valor_total,
+        forma_pagamento,
+        consultor,
+        data_consulta,
+        hora_consulta,
+        agendamento_id
+    ], async (err, result) => {
+        if (err) {
+            console.error('Erro ao salvar pagamento:', err);
+            return res.status(500).json({ error: 'Erro ao processar pagamento' });
+        }
+
+        // Configuração do email
+        const mailOptions = {
+            from: 'estudosdeingrid@gmail.com',
+            to: email,
+            subject: 'Confirmação de Agendamento - Dextrategia',
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2>Confirmação de Agendamento</h2>
+                    <p>Olá ${nome},</p>
+                    <p>Seu agendamento foi confirmado com sucesso!</p>
+                    
+                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                        <h3>Detalhes do Agendamento:</h3>
+                        <ul style="list-style: none; padding: 0;">
+                            <li><strong>Serviço:</strong> ${servico}</li>
+                            <li><strong>Consultor:</strong> ${consultor}</li>
+                            <li><strong>Data:</strong> ${new Date(data_consulta).toLocaleDateString()}</li>
+                            <li><strong>Horário:</strong> ${hora_consulta}</li>
+                            <li><strong>Valor:</strong> €${valor_total}</li>
+                            <li><strong>Forma de Pagamento:</strong> ${forma_pagamento}</li>
+                        </ul>
+                    </div>
+
+                    <p>Caso tenha alguma dúvida, entre em contato conosco.</p>
+                    <p>Atenciosamente,<br>Equipe Dextrategia</p>
+                </div>
+            `
+        };
+
+        try {
+            await transporter.sendMail(mailOptions);
+            res.json({ 
+                success: true, 
+                id: result.insertId,
+                message: 'Pagamento processado e email enviado com sucesso'
+            });
+        } catch (emailError) {
+            console.error('Erro ao enviar email:', emailError);
+            res.json({ 
+                success: true, 
+                id: result.insertId,
+                warning: 'Pagamento processado mas houve erro ao enviar email'
+            });
+        }
+    });
+});
+
+// Rotas de arquivos estáticos
 app.get('/frontend/index.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
+
 app.get('/frontend/user-dashboard.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/user-dashboard.html'));
+    res.sendFile(path.join(__dirname, '../frontend/user-dashboard.html'));
 });
+
 app.get('/frontend/admin-dashboard.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/admin-dashboard.html'));
+    res.sendFile(path.join(__dirname, '../frontend/admin-dashboard.html'));
 });
+
 app.get('/frontend/admin.css', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/admin.css'));
+    res.sendFile(path.join(__dirname, '../frontend/admin.css'));
 });
 
 app.get('/frontend/images/dextrategia_logo.png', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/images/dextrategia_logo.png'));
+    res.sendFile(path.join(__dirname, '../frontend/images/dextrategia_logo.png'));
 });
+
 app.get('/frontend/agendar-consulta.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/agendar-consulta.html'));
+    res.sendFile(path.join(__dirname, '../frontend/agendar-consulta.html'));
 });
+
 app.get('/frontend/agendar.css', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/agendar.css'));
+    res.sendFile(path.join(__dirname, '../frontend/agendar.css'));
 });
 
 app.get('/frontend/agendar.js', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/agendar.js'));
+    res.sendFile(path.join(__dirname, '../frontend/agendar.js'));
 });
 
 app.get('/frontend/pagamentos.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/pagamentos.html'));
+    res.sendFile(path.join(__dirname, '../frontend/pagamentos.html'));
 });
 
 app.get('/frontend/pagamentos.css', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/pagamentos.css'));
+    res.sendFile(path.join(__dirname, '../frontend/pagamentos.css'));
 });
+
 app.get('/frontend/pagamentos.js', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/pagamentos.js'));
+    res.sendFile(path.join(__dirname, '../frontend/pagamentos.js'));
 });
 
 app.get('/frontend/confirmacao.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/confirmacao.html'));
+    res.sendFile(path.join(__dirname, '../frontend/confirmacao.html'));
 });
 
 app.get('/frontend/images/background.png', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/images/background.png'));
+    res.sendFile(path.join(__dirname, '../frontend/images/background.png'));
 });
 
 app.get('/frontend/consultant-dashboard.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/consultant-dashboard.html'));
+    res.sendFile(path.join(__dirname, '../frontend/consultant-dashboard.html'));
 });
 
 app.get('/frontend/admin.js', (req, res) => {
-  res.setHeader('Content-Type', 'application/javascript');
-  res.sendFile(path.join(__dirname, '../frontend/admin.js'));
+    res.setHeader('Content-Type', 'application/javascript');
+    res.sendFile(path.join(__dirname, '../frontend/admin.js'));
 });
-// Listar todos os consultores
 
-
-// Criar admin inicial
-const createInitialAdmin = async () => {
-  const adminEmail = 'fernando@admin.com';
-  const adminPassword = await bcrypt.hash('1234', 10);
-  
-  db.query('SELECT * FROM users WHERE email = ?', [adminEmail], (err, results) => {
-    if (err) throw err;
-    if (results.length === 0) {
-      db.query(
-        'INSERT INTO users (name, email, password, is_admin, user_type) VALUES (?, ?, ?, 1, "admin")',
-        ['Admin', adminEmail, adminPassword]
-      );
-    }
-  });
-};
-
-createInitialAdmin();
-
-// Login
-app.post('/auth/login', async (req, res) => {
-  const { email, password } = req.body;
-  
-  // Primeiro tenta encontrar na tabela users
-  db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    // Se não encontrou em users, procura em consultants
-    if (results.length === 0) {
-      db.query('SELECT * FROM consultants WHERE email = ?', [email], async (err, consultResults) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (consultResults.length === 0) return res.status(401).json({ error: 'Usuário não encontrado' });
-
-        const consultant = consultResults[0];
-        const validPassword = await bcrypt.compare(password, consultant.password);
-        if (!validPassword) return res.status(401).json({ error: 'Senha inválida' });
-
-        const token = jwt.sign(
-          { id: consultant.id, email: consultant.email, type: 'consultant' }, 
-          'seu_secret_key'
-        );
-        res.json({ token, user_type: 'consultant' });
-      });
-      return;
-    }
-
-    // Caso tenha encontrado em users, continua com a lógica existente
-    const user = results[0];
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(401).json({ error: 'Senha inválida' });
-
-    const token = jwt.sign(
-      { id: user.id, email: user.email, type: user.user_type }, 
-      'seu_secret_key'
-    );
-    res.json({ token, user_type: user.user_type });
-  });
-});
-// Registro de usuário
-app.post('/auth/register', async (req, res) => {
-  const { name, email, password } = req.body;
-  
-  if (!email.match(/@(gmail\.com|hotmail\.com|outlook\.com)$/)) {
-    return res.status(400).json({ error: 'Domínio de email não permitido' });
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  
+// Rota para buscar informações do consultor
+app.get('/api/consultant/info', authenticateToken, (req, res) => {
   db.query(
-    'INSERT INTO users (name, email, password, user_type) VALUES (?, ?, ?, "user")',
-    [name, email, hashedPassword],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ message: 'Usuário registrado com sucesso' });
-    }
+      'SELECT id, name, especialidade, valor_hora FROM consultants WHERE id = ?',
+      [req.user.id],
+      (err, results) => {
+          if (err) {
+              console.error('Erro ao buscar informações do consultor:', err);
+              return res.status(500).json({ error: 'Erro ao buscar informações' });
+          }
+          if (results.length === 0) {
+              return res.status(404).json({ error: 'Consultor não encontrado' });
+          }
+          res.json(results[0]);
+      }
   );
 });
 
-app.post('/auth/admin', async (req, res) => {
-  try {
-    const { nome, email, senha } = req.body;
-    const hashedPassword = await bcrypt.hash(senha, 10);
-    
-    db.query(
-      'INSERT INTO users (name, email, password, is_admin, user_type) VALUES (?, ?, ?, 1, "admin")',
-      [nome, email, hashedPassword],
-      (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Admin criado com sucesso' });
+// Rota para buscar disponibilidade do consultor
+app.get('/api/consultant/availability', authenticateToken, (req, res) => {
+  db.query(
+      'SELECT * FROM availability WHERE consultor_id = ? AND data_disponivel >= CURRENT_DATE ORDER BY data_disponivel, hora_disponivel',
+      [req.user.id],
+      (err, results) => {
+          if (err) {
+              console.error('Erro ao buscar disponibilidade:', err);
+              return res.status(500).json({ error: 'Erro ao buscar disponibilidade' });
+          }
+          res.json(results);
       }
-    );
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  );
 });
 
-// Criar consultor
-app.post('/auth/consultants', async (req, res) => {
-  try {
-    const { nome, email, senha, especialidade, valor_hora, linkedin_url, pacotes_horas } = req.body;
-    const hashedPassword = await bcrypt.hash(senha, 10);
-    
-    db.query(
-      'INSERT INTO users (name, email, password, especialidade, valor_hora, linkedin_url, pacotes_horas, user_type) VALUES (?, ?, ?, ?, ?, ?, ?, "consultor")',
-      [nome, email, hashedPassword, especialidade, valor_hora, linkedin_url, JSON.stringify(pacotes_horas)],
-      (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Consultor criado com sucesso' });
+// Rota para buscar disponibilidade por data específica
+app.get('/api/consultant/availability/:date', authenticateToken, (req, res) => {
+  db.query(
+      'SELECT * FROM availability WHERE consultor_id = ? AND data_disponivel = ? ORDER BY hora_disponivel',
+      [req.user.id, req.params.date],
+      (err, results) => {
+          if (err) {
+              console.error('Erro ao buscar horários:', err);
+              return res.status(500).json({ error: 'Erro ao buscar horários' });
+          }
+          res.json(results);
       }
-    );
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  );
 });
-// No app.js, adicione a rota para salvar pagamentos
-app.post('/api/payments', (req, res) => {
-  const { nome, email, servico, valor_total, forma_pagamento, consultor, data_consulta, hora_consulta } = req.body;
+
+// Rota para salvar disponibilidade
+app.post('/api/consultant/availability', authenticateToken, (req, res) => {
+  const { date, times } = req.body;
+  
+  db.beginTransaction(err => {
+      if (err) {
+          console.error('Erro ao iniciar transação:', err);
+          return res.status(500).json({ error: 'Erro ao salvar disponibilidade' });
+      }
+
+      // Primeiro, remove a disponibilidade existente para a data
+      db.query(
+          'DELETE FROM availability WHERE consultor_id = ? AND data_disponivel = ?',
+          [req.user.id, date],
+          (err) => {
+              if (err) {
+                  return db.rollback(() => {
+                      res.status(500).json({ error: 'Erro ao atualizar disponibilidade' });
+                  });
+              }
+
+              // Se não há horários selecionados, commit a transação
+              if (!times || times.length === 0) {
+                  return db.commit(err => {
+                      if (err) {
+                          return db.rollback(() => {
+                              res.status(500).json({ error: 'Erro ao salvar disponibilidade' });
+                          });
+                      }
+                      res.json({ message: 'Disponibilidade atualizada com sucesso' });
+                  });
+              }
+
+              // Insere os novos horários
+              const values = times.map(time => [req.user.id, date, time, 'available']);
+              db.query(
+                  'INSERT INTO availability (consultor_id, data_disponivel, hora_disponivel, status) VALUES ?',
+                  [values],
+                  (err) => {
+                      if (err) {
+                          return db.rollback(() => {
+                              res.status(500).json({ error: 'Erro ao salvar disponibilidade' });
+                          });
+                      }
+
+                      db.commit(err => {
+                          if (err) {
+                              return db.rollback(() => {
+                                  res.status(500).json({ error: 'Erro ao salvar disponibilidade' });
+                              });
+                          }
+                          res.json({ message: 'Disponibilidade salva com sucesso' });
+                      });
+                  }
+              );
+          }
+      );
+  });
+});
+
+app.get('/api/consultant/meetings', authenticateToken, (req, res) => {
+    const query = `
+        SELECT 
+            id,
+            nome,
+            email,
+            tipo_servico,
+            data_consulta,
+            hora_consulta,
+            tipo_reuniao,
+            descricao,
+            valor,
+            consultor
+        FROM 
+            agendamentos
+        WHERE 
+            consultor = ?
+        ORDER BY 
+            data_consulta ASC,
+            hora_consulta ASC
+    `;
+    
+    db.query(query, [req.user.id], (err, results) => {
+        if (err) {
+            console.error('Erro ao buscar reuniões:', err);
+            return res.status(500).json({ error: 'Erro ao carregar reuniões' });
+        }
+
+        // Log para debug
+        console.log('ID do Consultor:', req.user.id);
+        console.log('Reuniões encontradas:', results);
+
+        res.json(results);
+    });
+});
+// Corrigir a rota de atualização de status para usar mysql
+app.put('/api/consultant/meetings/:id/status', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
   
   const query = `
-      INSERT INTO payments (nome, email, servico, valor_total, forma_pagamento, consultor, data_consulta, hora_consulta)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-      
-  const values = [nome, email, servico, valor_total, forma_pagamento, consultor, data_consulta, hora_consulta];
+      UPDATE meetings 
+      SET status = ? 
+      WHERE id = ? AND consultor_id = ? 
+  `;
   
-  db.query(query, values, (err, result) => {
+  db.query(query, [status, id, req.user.id], (err, result) => {
       if (err) {
-          console.error('Erro ao salvar pagamento:', err);
-          res.status(500).json({ error: 'Erro ao processar pagamento' });
-          return;
+          console.error('Erro ao atualizar status:', err);
+          return res.status(500).json({ error: 'Erro ao atualizar status da reunião' });
       }
-      res.json({ success: true, id: result.insertId });
+      
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ error: 'Reunião não encontrada' });
+      }
+      
+      res.json({ message: 'Status atualizado com sucesso' });
   });
 });
 
 
+
+// Inicialização do servidor
 const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-  console.log(`Acesse: http://localhost:${PORT}`);
+    console.log(`Servidor rodando na porta ${PORT}`);
+    console.log(`Acesse: http://localhost:${PORT}`);
+});
+app.get('/api/consultants/count', authenticateToken, (req, res) => {
+  db.query('SELECT COUNT(*) as count FROM consultants', (err, results) => {
+      if (err) {
+          console.error('Erro ao contar consultores:', err);
+          return res.status(500).json({ error: 'Erro ao contar consultores' });
+      }
+      res.json({ count: results[0].count });
+  });
+});
+
+// Rota para resumo financeiro do período
+app.get('/api/payments/summary', authenticateToken, (req, res) => {
+  const { start, end } = req.query;
+  const query = `
+      SELECT 
+          COUNT(*) as total_payments,
+          SUM(valor_total) as total
+      FROM payments 
+      WHERE status = 'confirmado'
+      AND data_consulta BETWEEN ? AND ?
+  `;
+  
+  db.query(query, [start, end], (err, results) => {
+      if (err) {
+          console.error('Erro ao buscar resumo financeiro:', err);
+          return res.status(500).json({ error: 'Erro ao buscar resumo financeiro' });
+      }
+      res.json({
+          total_payments: results[0].total_payments,
+          total: results[0].total || 0
+      });
+  });
+});
+
+// Rota para contar usuários ativos (que têm agendamentos)
+app.get('/api/users/active', authenticateToken, (req, res) => {
+  const query = `
+      SELECT COUNT(DISTINCT email) as count 
+      FROM agendamentos 
+      WHERE data_consulta >= CURDATE()
+  `;
+  
+  db.query(query, (err, results) => {
+      if (err) {
+          console.error('Erro ao contar usuários ativos:', err);
+          return res.status(500).json({ error: 'Erro ao contar usuários ativos' });
+      }
+      res.json({ count: results[0].count });
+  });
+});
+
+// Rota para contar reuniões do mês
+app.get('/api/meetings/month-count', authenticateToken, (req, res) => {
+  const query = `
+      SELECT COUNT(*) as count 
+      FROM agendamentos 
+      WHERE YEAR(data_consulta) = YEAR(CURRENT_DATE())
+      AND MONTH(data_consulta) = MONTH(CURRENT_DATE())
+  `;
+  
+  db.query(query, (err, results) => {
+      if (err) {
+          console.error('Erro ao contar reuniões:', err);
+          return res.status(500).json({ error: 'Erro ao contar reuniões' });
+      }
+      res.json({ count: results[0].count });
+  });
+});
+
+
+
+
+// Rota para relatório financeiro por período
+app.get('/api/financial/report', authenticateToken, (req, res) => {
+  const { start_date, end_date } = req.query;
+  const query = `
+      SELECT 
+          DATE_FORMAT(data_consulta, '%Y-%m') as mes,
+          COUNT(*) as total_consultas,
+          SUM(valor_total) as receita_total,
+          AVG(valor_total) as ticket_medio
+      FROM payments
+      WHERE status = 'confirmado'
+      AND data_consulta BETWEEN ? AND ?
+      GROUP BY DATE_FORMAT(data_consulta, '%Y-%m')
+      ORDER BY mes DESC
+  `;
+  
+  db.query(query, [start_date, end_date], (err, results) => {
+      if (err) {
+          console.error('Erro ao gerar relatório financeiro:', err);
+          return res.status(500).json({ error: 'Erro ao gerar relatório financeiro' });
+      }
+      res.json(results);
+  });
+});
+
+// Rota para listar reuniões no dashboard admin
+app.get('/api/meetings/recent', authenticateToken, (req, res) => {
+    const query = `
+        SELECT 
+            a.data_consulta,
+            a.hora_consulta,
+            a.consultor,
+            a.nome as cliente,
+            a.tipo_servico,
+            a.tipo_reuniao,
+            CASE 
+                WHEN a.data_consulta > CURDATE() THEN 'Agendada'
+                WHEN a.data_consulta = CURDATE() THEN 'Hoje'
+                ELSE 'Concluída'
+            END as status
+        FROM 
+            agendamentos a
+        WHERE
+            a.data_consulta IS NOT NULL
+        ORDER BY 
+            a.data_consulta DESC, 
+            a.hora_consulta DESC
+        LIMIT 10
+    `;
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Erro ao buscar reuniões:', err);
+            return res.status(500).json({ error: 'Erro ao carregar reuniões' });
+        }
+        
+        // Log para debug
+        console.log('Reuniões encontradas:', results);
+        
+        res.json(results);
+    });
+});
+
+
+app.post('/auth/admin', authenticateToken, async (req, res) => {
+    try {
+        const { nome, email, senha } = req.body;
+        
+        if (!email.endsWith('@admin.com')) {
+            return res.status(400).json({ error: 'Email deve terminar com @admin.com' });
+        }
+
+        const hashedPassword = await bcrypt.hash(senha, 10);
+        
+        db.query(
+            'INSERT INTO users (name, email, password, user_type) VALUES (?, ?, ?, "admin")',
+            [nome, email, hashedPassword],
+            (err, result) => {
+                if (err) {
+                    console.error('Erro ao criar administrador:', err);
+                    return res.status(500).json({ error: err.message });
+                }
+                res.status(201).json({ message: 'Administrador criado com sucesso' });
+            }
+        );
+    } catch (error) {
+        console.error('Erro ao criar administrador:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 
@@ -596,7 +869,6 @@ Se precisar, descreva funções, classes ou módulos.
     <title>Dashboard Administrativo</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="admin.css">
-   
 </head>
 <body>
     <div class="dashboard-container">
@@ -646,7 +918,6 @@ Se precisar, descreva funções, classes ou módulos.
             <!-- Header -->
             <header class="header">
                 <h1>Dashboard Administrativo</h1>
-               
                 <div class="user-info">
                     <span>Bem-vindo, Admin</span>
                     <button class="btn btn-primary" onclick="showConsultantForm()">
@@ -655,6 +926,7 @@ Se precisar, descreva funções, classes ou módulos.
                     <button class="btn btn-primary" onclick="showAdminForm()">
                         <i class="fas fa-user-plus"></i> Novo Admin
                     </button>
+                    <button class="logout-btn" onclick="logout()">Sair</button>
                 </div>
             </header>
 
@@ -664,45 +936,34 @@ Se precisar, descreva funções, classes ou módulos.
                 <div class="cards-grid">
                     <div class="card">
                         <h3>Total de Consultores</h3>
-                        <p class="number" id="total-consultores">...</p>
+                        <p class="number" id="total-consultores">0</p>
                     </div>
                     <div class="card">
                         <h3>Reuniões este mês</h3>
-                        <p class="number" id="total-reunioes">...</p>
+                        <p class="number" id="total-reunioes">0</p>
                     </div>
                     <div class="card">
                         <h3>Receita Mensal</h3>
-                        <p class="number" id="receita-mensal">...</p>
+                        <p class="number" id="receita-mensal">€ 0,00</p>
                     </div>
                     <div class="card">
                         <h3>Clientes Ativos</h3>
-                        <p class="number" id="clientes-ativos">...</p>
-                    </div>
-                </div>
-
-                <!-- Gráficos -->
-                <div class="charts-container">
-                    <div class="chart-card">
-                        <h3>Receita Mensal</h3>
-                        <canvas id="revenueChart"></canvas>
-                    </div>
-                    <div class="chart-card">
-                        <h3>Distribuição por Consultor</h3>
-                        <canvas id="consultantRevenueChart"></canvas>
+                        <p class="number" id="clientes-ativos">0</p>
                     </div>
                 </div>
 
                 <!-- Reuniões Recentes -->
                 <div class="table-container">
                     <h3>Últimas Reuniões</h3>
-                    <table id="recent-meetings">
+                    <table id="ultimas-reunioes">
                         <thead>
                             <tr>
                                 <th>Data</th>
                                 <th>Consultor</th>
                                 <th>Cliente</th>
                                 <th>Status</th>
-                                <th>Ações</th>
+                                <th>Tipo de Serviço</th>
+                                <th>Tipo de Reunião</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -760,6 +1021,7 @@ Se precisar, descreva funções, classes ou módulos.
                     <div class="filters">
                         <select id="consultant-filter">
                             <option value="">Todos os Consultores</option>
+                            <!-- Opções serão inseridas via JavaScript -->
                         </select>
                         <input type="date" id="date-filter">
                     </div>
@@ -772,7 +1034,9 @@ Se precisar, descreva funções, classes ou módulos.
                                 <th>Data</th>
                                 <th>Consultor</th>
                                 <th>Cliente</th>
-                                <th>Documentos</th>
+                                <th>Tipo de Serviço</th>
+                                <th>Tipo de Reunião</th>
+                                <th>Status</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
@@ -799,7 +1063,7 @@ Se precisar, descreva funções, classes ou módulos.
 
 
 :root {
-    --primary-color: #1A5F7A;
+    --primary-color: #7cc7e4;
     --secondary-color: #2C88B0;
     --background-color: #f5f6fa;
     --sidebar-width: 250px;
@@ -1080,8 +1344,177 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = '/frontend/login.html';
         return;
     }
+
+    // Carrega todos os dados iniciais
+    loadDashboardData();
+    loadConsultores();
+    loadUltimasReunioes();
+
+    // Adiciona listeners para navegação
+    setupNavigation();
 });
 
+// Setup da navegação
+function setupNavigation() {
+    const menuItems = document.querySelectorAll('.sidebar nav a');
+    menuItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = item.getAttribute('href').substring(1);
+            showSection(targetId);
+        });
+    });
+}
+
+// Mostra a seção selecionada
+function showSection(sectionId) {
+    document.querySelectorAll('section').forEach(section => {
+        section.style.display = 'none';
+    });
+    document.getElementById(sectionId).style.display = 'block';
+
+    // Atualiza o item ativo no menu
+    document.querySelectorAll('.sidebar nav li').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector(`a[href="#${sectionId}"]`).parentElement.classList.add('active');
+}
+
+// Função para carregar dados do dashboard
+async function loadDashboardData() {
+    try {
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
+
+        // Carregar contagem de consultores
+        const consultoresResponse = await fetch('http://localhost:3000/api/consultants/count', { headers });
+        const consultoresData = await consultoresResponse.json();
+        document.getElementById('total-consultores').textContent = consultoresData.count;
+
+        // Carregar dados financeiros do mês atual
+        const hoje = new Date();
+        const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        const ultimoDiaMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+
+        const financialResponse = await fetch(`http://localhost:3000/api/payments/summary?start=${primeiroDiaMes.toISOString()}&end=${ultimoDiaMes.toISOString()}`, { headers });
+        const financialData = await financialResponse.json();
+        document.getElementById('receita-mensal').textContent = `€ ${financialData.total.toFixed(2)}`;
+
+        // Carregar contagem de clientes ativos
+        const clientesResponse = await fetch('http://localhost:3000/api/users/active', { headers });
+        const clientesData = await clientesResponse.json();
+        document.getElementById('clientes-ativos').textContent = clientesData.count;
+
+        // Carregar reuniões do mês
+        const reunioesResponse = await fetch('http://localhost:3000/api/meetings/month-count', { headers });
+        const reunioesData = await reunioesResponse.json();
+        document.getElementById('total-reunioes').textContent = reunioesData.count;
+
+    } catch (error) {
+        console.error('Erro ao carregar dados do dashboard:', error);
+    }
+}
+
+// Função para carregar e exibir consultores
+async function loadConsultores() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3000/api/consultants', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const consultores = await response.json();
+        
+        const tbody = document.querySelector('#lista-consultores tbody');
+        tbody.innerHTML = ''; // Limpa a tabela atual
+        
+        consultores.forEach(consultor => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${consultor.name}</td>
+                <td>${consultor.especialidade}</td>
+                <td>€ ${consultor.valor_hora.toFixed(2)}</td>
+                <td>
+                    <button class="btn btn-primary" onclick="editConsultor(${consultor.id})">Editar</button>
+                    <button class="btn btn-danger" onclick="deleteConsultor(${consultor.id})">Excluir</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Atualizar também o select de consultores na seção de reuniões
+        const selectConsultor = document.getElementById('consultant-filter');
+        if (selectConsultor) {
+            selectConsultor.innerHTML = '<option value="">Todos os Consultores</option>';
+            consultores.forEach(consultor => {
+                selectConsultor.innerHTML += `
+                    <option value="${consultor.id}">${consultor.name}</option>
+                `;
+            });
+        }
+
+    } catch (error) {
+        console.error('Erro ao carregar consultores:', error);
+    }
+}
+
+// Função para carregar últimas reuniões
+async function loadUltimasReunioes() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3000/api/meetings/recent', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) throw new Error('Erro ao carregar reuniões');
+
+        const reunioes = await response.json();
+        const tableBody = document.querySelector('#ultimas-reunioes tbody');
+
+        if (!reunioes || reunioes.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center">Nenhuma reunião encontrada</td>
+                </tr>
+            `;
+            return;
+        }
+
+        tableBody.innerHTML = reunioes.map(reuniao => {
+            // Formata a data para o padrão brasileiro
+            const data = new Date(reuniao.data_consulta).toLocaleDateString('pt-BR');
+            
+            return `
+                <tr>
+                    <td>${data}</td>
+                    <td>${reuniao.consultor}</td>
+                    <td>${reuniao.cliente}</td>
+                    <td><span class="status-badge ${reuniao.status.toLowerCase()}">${reuniao.status}</span></td>
+                    <td>${reuniao.tipo_servico}</td>
+                    <td>${reuniao.tipo_reuniao}</td>
+                </tr>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Erro ao carregar reuniões:', error);
+        document.querySelector('#ultimas-reunioes tbody').innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-danger">
+                    Erro ao carregar reuniões. Por favor, tente novamente.
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Funções para modal de novo consultor
 function showConsultantForm() {
     const modalHtml = `
         <div class="modal" id="consultant-modal">
@@ -1113,7 +1546,7 @@ function showConsultantForm() {
                     </div>
                     
                     <div class="form-group">
-                        <label>Valor/Hora (R$):</label>
+                        <label>Valor/Hora (€):</label>
                         <input type="number" name="valor_hora" step="0.01" min="0" required>
                     </div>
                     
@@ -1135,6 +1568,7 @@ function showConsultantForm() {
     document.getElementById('consultant-form').addEventListener('submit', handleConsultantSubmit);
 }
 
+// Handler do formulário de novo consultor
 async function handleConsultantSubmit(event) {
     event.preventDefault();
     
@@ -1155,12 +1589,11 @@ async function handleConsultantSubmit(event) {
             throw new Error('Email deve terminar com @consult.admin');
         }
 
-        console.log('Dados a serem enviados:', consultantData);
-
         const response = await fetch('http://localhost:3000/auth/consultants', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
             body: JSON.stringify(consultantData)
         });
@@ -1173,15 +1606,18 @@ async function handleConsultantSubmit(event) {
         alert('Consultor criado com sucesso!');
         closeModal('consultant-modal');
         
+        // Recarrega os dados
+        await loadDashboardData();
+        await loadConsultores();
+        
     } catch (error) {
         console.error('Erro:', error);
         alert(error.message);
     }
 }
 
-// Função para abrir modal de novo admin
+// Função para modal de novo admin
 function showAdminForm() {
-    console.log('Abrindo modal de admin');
     const modalHtml = `
         <div class="modal" id="admin-modal">
             <div class="modal-content">
@@ -1219,6 +1655,7 @@ function showAdminForm() {
     document.getElementById('admin-form').addEventListener('submit', handleAdminSubmit);
 }
 
+// Handler do formulário de novo admin
 async function handleAdminSubmit(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -1248,6 +1685,7 @@ async function handleAdminSubmit(e) {
     }
 }
 
+// Função para fechar modais
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
@@ -1255,9 +1693,60 @@ function closeModal(modalId) {
     }
 }
 
+// Função para mostrar erros
 function showError(message) {
     console.error(message);
     alert(message);
+}
+
+// Adiciona estilos para os status das reuniões
+const style = document.createElement('style');
+style.textContent = `
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        display: inline-block;
+    }
+
+    .status-badge.agendada {
+        background-color: #ebf5ff;
+        color: #1a56db;
+    }
+
+    .status-badge.hoje {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-badge.concluida {
+        background-color: #def7ec;
+        color: #03543f;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .text-danger {
+        color: #dc2626;
+    }
+`;
+// Faz logout
+async function logout() {
+    try {
+        await fetch('http://localhost:3000/api/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+    } finally {
+        localStorage.removeItem('token');
+        window.location.href = '/index.html';
+    }
 }
 
 
@@ -1632,68 +2121,10 @@ Este arquivo faz parte do projeto. Adicione aqui uma explicação personalizada 
 Se precisar, descreva funções, classes ou módulos.
 
 
-
-
-
-const consultores = [
-    {
-        nome: "Carla Medeiros",
-        especialidade: "Marketing Digital",
-        valor: 45,
-        imagem: "https://img.freepik.com/fotos-gratis/mulher-de-tiro-medio-posando-no-escritorio_23-2149392072.jpg?ga=GA1.1.1144895126.1737632696&semt=ais_hybrid",
-        descricao: "Especialista em marketing digital com mais de 10 anos de experiência. Foco em estratégias de crescimento, SEO, marketing de conteúdo e mídia social.",
-        skills: ["SEO", "Google Ads", "Social Media", "Content Marketing"],
-        packs: {
-            starter: { horas: 5, valor: 200 },
-            business: { horas: 10, valor: 400 },
-            enterprise: { horas: 20, valor: 750 }
-        }
-    },
-    {
-        nome: "Ricardo Almeida",
-        especialidade: "Gestão Financeira",
-        valor: 60,
-        imagem: "https://img.freepik.com/fotos-gratis/designer-trabalhando-no-modelo-3d_23-2149371896.jpg?ga=GA1.1.1144895126.1737632696&semt=ais_hybrid",
-        descricao: "Consultor financeiro com MBA em Finanças e 15 anos de experiência no mercado. Especializado em planejamento financeiro e análise de investimentos.",
-        skills: ["Análise Financeira", "Investimentos", "Gestão de Riscos", "Valuation"],
-        packs: {
-            starter: { horas: 5, valor: 275 },
-            business: { horas: 10, valor: 500 },
-            enterprise: { horas: 20, valor: 900 }
-        }
-    },
-    {
-        nome: "Fernanda Costa",
-        especialidade: "RH e Processos",
-        valor: 55,
-        imagem: "https://img.freepik.com/fotos-gratis/mulher-sorrindo-sentado-no-cafe-com-portatil-fechado_1262-1151.jpg?ga=GA1.1.1144895126.1737632696&semt=ais_hybrid",
-        descricao: "Especialista em Recursos Humanos com Mestrado em Gestão de Pessoas. Experiência em implementação de programas de desenvolvimento.",
-        skills: ["Gestão de Pessoas", "Cultura Organizacional", "Desenvolvimento", "Processos"],
-        packs: {
-            starter: { horas: 5, valor: 250 },
-            business: { horas: 10, valor: 450 },
-            enterprise: { horas: 20, valor: 800 }
-        }
-    },
-    {
-        nome: "João Silva",
-        especialidade: "Estratégia Digital",
-        valor: 65,
-        imagem: "https://img.freepik.com/fotos-gratis/retrato-do-homem-de-negocios-feliz-com-tabuleta-digital_1262-12831.jpg?ga=GA1.1.1144895126.1737632696&semt=ais_hybrid",
-        descricao: "Especialista em transformação digital e inovação. Experiência em startups e grandes empresas, com foco em crescimento escalável.",
-        skills: ["Transformação Digital", "Inovação", "Growth", "Estratégia"],
-        packs: {
-            starter: { horas: 5, valor: 300 },
-            business: { horas: 10, valor: 550 },
-            enterprise: { horas: 20, valor: 1000 }
-        }
-    }
-];
-
-// Inicializa o Flatpickr
+// Inicializa o Flatpickr para seleção de data
 flatpickr("#data", {
     enableTime: false,
-    dateFormat: "d/m/y",
+    dateFormat: "Y-m-d",
     minDate: "today",
     disable: [
         function(date) {
@@ -1718,34 +2149,74 @@ nextBtn.addEventListener('click', () => {
     wrapper.scrollBy({ left: 320, behavior: 'smooth' });
 });
 
-// Populate consultants
-consultores.forEach(consultor => {
-    const card = document.createElement('div');
-    card.className = 'consultor-card';
-    card.innerHTML = `
-        <div class="consultor-header">
-            <img src="${consultor.imagem}" alt="${consultor.nome}" class="consultor-img">
-            <div>
-                <h3>${consultor.nome}</h3>
-                <p class="consultor-especialidade">${consultor.especialidade}</p>
-            </div>
-        </div>
-        <p class="consultor-valor">€${consultor.valor}/hora</p>
-        <p class="consultor-descricao">${consultor.descricao}</p>
-        <div class="consultor-skills">
-            ${consultor.skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
-        </div>
-        <div class="consultor-packs">
-            <p class="pack-info">Pack Starter: ${consultor.packs.starter.horas}h - €${consultor.packs.starter.valor}</p>
-            <p class="pack-info">Pack Business: ${consultor.packs.business.horas}h - €${consultor.packs.business.valor}</p>
-            <p class="pack-info">Pack Enterprise: ${consultor.packs.enterprise.horas}h - €${consultor.packs.enterprise.valor}</p>
-        </div>
-        <a href="https://linkedin.com/in/${consultor.nome.toLowerCase().replace(' ', '')}" target="_blank" class="linkedin-btn">
-            Ver perfil no LinkedIn
-        </a>
-    `;
-    wrapper.appendChild(card);
-});
+// Definição dos serviços e valores
+const servicos = {
+    'individual': 100,
+    'pack-starter': 225,
+    'pack-business': 450,
+    'pack-enterprise': 800,
+    'pack-premium': 1200
+};
+
+// Função para carregar consultores do banco de dados
+async function loadConsultants() {
+    try {
+        const response = await fetch('http://localhost:3000/api/consultants', {
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('token') // Adiciona o token de autenticação
+            }
+        });
+        
+        if (!response.ok) throw new Error('Erro ao buscar consultores');
+        
+        const consultores = await response.json();
+
+        // Popula os cards dos consultores
+        wrapper.innerHTML = ''; // Limpa o wrapper antes de adicionar os cards
+        
+        consultores.forEach(consultor => {
+            const card = document.createElement('div');
+            card.className = 'consultor-card';
+            card.innerHTML = `
+                <div class="consultor-header">
+                    <img src="${consultor.linkedin_url}" alt="${consultor.name}" class="consultor-img">
+                    <div>
+                        <h3>${consultor.name}</h3>
+                        <p class="consultor-especialidade">${consultor.especialidade}</p>
+                    </div>
+                </div>
+                <p class="consultor-valor">€${consultor.valor_hora}/hora</p>
+                <p class="consultor-descricao">Especialista em ${consultor.especialidade}</p>
+                <div class="consultor-skills">
+                    <span class="skill-tag">${consultor.especialidade}</span>
+                </div>
+                <div class="consultor-packs">
+                    <p class="pack-info">Pack Starter: 5h - €${consultor.valor_hora * 5}</p>
+                    <p class="pack-info">Pack Business: 10h - €${consultor.valor_hora * 10}</p>
+                    <p class="pack-info">Pack Enterprise: 20h - €${consultor.valor_hora * 20}</p>
+                </div>
+                <a href="${consultor.linkedin_url}" target="_blank" class="linkedin-btn">
+                    Ver perfil no LinkedIn
+                </a>
+            `;
+            wrapper.appendChild(card);
+        });
+
+        // Atualiza o select de consultores
+        const consultorSelect = document.getElementById('consultor');
+        consultorSelect.innerHTML = '<option value="">Selecione o Consultor</option>';
+        
+        consultores.forEach(consultor => {
+            const option = document.createElement('option');
+            option.value = consultor.id;
+            option.textContent = `${consultor.name} - ${consultor.especialidade}`;
+            consultorSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar consultores:', error);
+        wrapper.innerHTML = '<p>Erro ao carregar consultores. Por favor, tente novamente.</p>';
+    }
+}
 
 // Update consultant select based on service type
 const tipoServicoSelect = document.getElementById('tipo_servico');
@@ -1755,46 +2226,54 @@ tipoServicoSelect.addEventListener('change', () => {
     consultorSelect.innerHTML = '<option value="">Selecione o Consultor</option>';
     
     if (tipoServicoSelect.value) {
-        consultores.forEach(consultor => {
-            const option = document.createElement('option');
-            option.value = consultor.nome.toLowerCase().replace(' ', '');
-            option.textContent = `${consultor.nome} - ${consultor.especialidade}`;
-            consultorSelect.appendChild(option);
-        });
+        loadConsultants(); // Carrega os consultores do banco quando um serviço é selecionado
     }
 });
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('agendamentoForm');
-    if (!form) return;
 
-    const servicos = {
-        'pack-starter': 225,
-        'pack-business': 450,
-        'pack-enterprise': 800,
-        'pack-premium': 1200,
-        'individual': 100
+// Form submission handler
+document.getElementById('agendamentoForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        nome: document.getElementById('nome').value,
+        email: document.getElementById('email').value,
+        tipo_servico: document.getElementById('tipo_servico').value,
+        valor: servicos[document.getElementById('tipo_servico').value],
+        consultor: document.getElementById('consultor').value, // Agora já está salvando o ID
+        data_consulta: document.getElementById('data').value,
+        hora_consulta: document.getElementById('hora').value,
+        tipo_reuniao: document.getElementById('tipo_reuniao').value,
+        descricao: document.getElementById('descricao').value
     };
 
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const servicoSelecionado = document.getElementById('tipo_servico').selectedOptions[0];
-        
-        const bookingDetails = {
-            nome: document.getElementById('nome').value,
-            email: document.getElementById('email').value,
-            servico: servicoSelecionado.textContent,
-            valorTotal: servicos[servicoSelecionado.value],
-            consultor: document.getElementById('consultor').selectedOptions[0].textContent,
-            data: document.getElementById('data').value,
-            hora: document.getElementById('hora').value
-        };
-        
-        localStorage.setItem('bookingDetails', JSON.stringify(bookingDetails));
-        window.location.href = 'pagamentos.html';
-    });
+    try {
+        const response = await fetch('http://localhost:3000/api/agendamentos', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token')
+            },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            localStorage.setItem('bookingDetails', JSON.stringify(formData));
+            localStorage.setItem('agendamentoId', result.id);
+            window.location.href = 'pagamentos.html';
+        } else {
+            alert('Erro ao agendar consulta. Por favor, tente novamente.');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao agendar consulta. Por favor, tente novamente.');
+    }
 });
 
+// Carrega os consultores quando a página inicializa
+document.addEventListener('DOMContentLoaded', () => {
+    loadConsultants();
+});
 
 
 
@@ -1821,21 +2300,103 @@ Se precisar, descreva funções, classes ou módulos.
             background-attachment: fixed;
             height: 100vh;
             margin: 0;
+            color: #333;
         }
         
+        .confirmation-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
         .icon {
             font-size: 80px;
-            color: green;
+            color: #4CAF50;
             margin-bottom: 20px;
+        }
+
+        .details {
+            text-align: left;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            max-width: 400px;
+        }
+
+        .details p {
+            margin: 10px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .details strong {
+            color: #2196F3;
+        }
+
+        .back-button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .back-button:hover {
+            background-color: #1976D2;
         }
     </style>
 </head>
 <body>
-    <div class="icon">&#10004;</div>
-    <h1>Pagamento Confirmado!</h1>
-    <p>Obrigado por sua compra.</p>
-    <p>Você receberá um email com a confirmação do dia e hora da sua compra, junto com o recibo de pagamento.</p>
-    <p>Caso tenha alguma dúvida, entre em contato conosco.</p>
+    <div class="confirmation-container">
+        <div class="icon">&#10004;</div>
+        <h1>Pagamento Confirmado!</h1>
+        <p>Obrigado por sua compra.</p>
+        
+        <div class="details">
+            <h3>Detalhes do Agendamento:</h3>
+            <div id="confirmationDetails"></div>
+        </div>
+
+        <p>Um email de confirmação foi enviado para o seu endereço cadastrado.</p>
+        <p>Caso tenha alguma dúvida, entre em contato conosco.</p>
+        
+        <a href="user-dashboard.html" class="back-button">Voltar ao Dashboard</a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const confirmationDetails = JSON.parse(localStorage.getItem('confirmationDetails'));
+            if (confirmationDetails) {
+                const detailsContainer = document.getElementById('confirmationDetails');
+                
+                // Formata a data para o padrão brasileiro
+                const data = new Date(confirmationDetails.data_consulta);
+                const dataFormatada = data.toLocaleDateString('pt-BR');
+
+                detailsContainer.innerHTML = `
+                    <p><strong>Nome:</strong> ${confirmationDetails.nome}</p>
+                    <p><strong>Serviço:</strong> ${confirmationDetails.servico}</p>
+                    <p><strong>Consultor:</strong> ${confirmationDetails.consultor}</p>
+                    <p><strong>Data:</strong> ${dataFormatada}</p>
+                    <p><strong>Horário:</strong> ${confirmationDetails.hora_consulta}</p>
+                    <p><strong>Valor:</strong> €${confirmationDetails.valor_total}</p>
+                    <p><strong>Forma de Pagamento:</strong> ${confirmationDetails.forma_pagamento}</p>
+                `;
+
+                // Limpa os dados do localStorage após mostrar
+                localStorage.removeItem('confirmationDetails');
+                localStorage.removeItem('bookingDetails');
+                localStorage.removeItem('agendamentoId');
+            }
+        });
+    </script>
 </body>
 </html>
 
@@ -1851,7 +2412,7 @@ Se precisar, descreva funções, classes ou módulos.
 <head>
     <meta charset="UTF-8">
     <title>Dashboard do Consultor</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
@@ -1863,73 +2424,76 @@ Se precisar, descreva funções, classes ou módulos.
         }
 
         body {
-    background: url('images/background.png') no-repeat center center fixed;
-      background-size: cover;
-      color: #6B7280;
-      font-weight: 300;
-
-  }
-
-        h2 {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            color: #60a5fa;
+            background: url('/frontend/images/background.png') no-repeat center center fixed;
+            background-size: cover;
+            color: #4b5563;
+            min-height: 100vh;
         }
 
-        nav {
-            background-color: white;
+        .header {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 1.5rem;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
         }
 
-        nav .container {
-            max-width: 1280px;
+        .container {
+            max-width: 1000px;
             margin: 0 auto;
             padding: 0 1rem;
         }
 
-        nav .content {
+        .profile-section {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            height: 4rem;
+            margin-bottom: 1rem;
         }
 
-        nav .logo {
+        .profile-info h1 {
+            color: #60a5fa;
+            font-size: 2rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .profile-details {
             display: flex;
-            align-items: center;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 1rem;
         }
 
-        nav .logo img {
-            height: 2rem;
-            margin-right: 1rem;
+        .profile-details span {
+            color: #60a5fa;
+            font-size: 1rem;
+            font-weight: 500;
         }
 
-        nav .user {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
+        .profile-details p {
+            color: #1f2937;
+            font-weight: 500;
+            margin-top: 0.25rem;
         }
 
-        nav .logout {
-            background-color: #ef4444;
+        .logout-btn {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
             color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
         }
 
-        nav .logout:hover {
-            background-color: #dc2626;
-        }
-
-        main {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 2rem 1rem;
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
         }
 
         .card {
-            background-color: white;
+            background: white;
             border-radius: 0.75rem;
             padding: 1.5rem;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -1937,29 +2501,34 @@ Se precisar, descreva funções, classes ou módulos.
         }
 
         .card h2 {
+            color: #1f2937;
             font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-
-        .profile .grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 1rem;
-        }
-
-        .availability .calendar {
             margin-bottom: 1.5rem;
         }
 
-        .availability .slots {
+        /* Calendário e Slots de Tempo */
+        .calendar-section {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 1rem;
-            margin-bottom: 1rem;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: flex-start;
         }
 
-        .availability .slot label {
+        .time-slots {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .time-slot {
+            position: relative;
+        }
+
+        .time-slot input[type="checkbox"] {
+            display: none;
+        }
+
+        .time-slot label {
             display: block;
             padding: 1rem;
             background-color: #f3f4f6;
@@ -1967,335 +2536,535 @@ Se precisar, descreva funções, classes ou módulos.
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
-            font-size: 1.125rem;
-            font-weight: 500;
         }
 
-        .availability .slot input[type="checkbox"] {
-            display: none;
-        }
-
-        .availability .slot input[type="checkbox"]:checked + label {
-            background-color: #60a5fa;
-            color: white;
-        }
-
-        .availability .actions {
-            text-align: right;
-        }
-
-        .availability .save-button {
-            background-color: #60a5fa;
-            color: white;
-            padding: 0.625rem 1.5rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s;
-            font-weight: 500;
-            border: none;
-            cursor: pointer;
-        }
-
-        .availability .save-button:hover {
+        .time-slot input[type="checkbox"]:checked + label {
             background-color: #3b82f6;
+            color: white;
         }
 
-        .appointments .appointment {
+        .save-btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            margin-top: 1rem;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .save-btn:hover {
+            background-color: #2563eb;
+        }
+
+        /* Lista de Reuniões */
+        .meeting {
             border: 1px solid #e5e7eb;
             border-radius: 0.5rem;
             padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            transition: box-shadow 0.2s;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
         }
 
-        .appointments .appointment:hover {
+        .meeting:hover {
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        .appointments .appointment-header {
+        .meeting-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1rem;
         }
 
-        .appointments .client-name {
-            font-size: 1.25rem;
-            font-weight: 600;
+        .meeting-info h3 {
+            color: #1f2937;
+            font-size: 1.125rem;
+            margin-bottom: 0.25rem;
         }
 
-        .appointments .appointment-info {
+        .meeting-date {
             color: #6b7280;
             font-size: 0.875rem;
         }
 
-        .appointments .appointment-format {
-            padding: 0.25rem 0.75rem;
+        .meeting-status {
+            padding: 0.375rem 0.75rem;
             border-radius: 9999px;
             font-size: 0.75rem;
             font-weight: 500;
         }
 
-        .appointments .format-online {
-            background-color: #d1fae5;
-            color: #065f46;
-        }
-
-        .appointments .format-presential {
+        .status-pendente {
             background-color: #dbeafe;
             color: #1e40af;
         }
 
-        .appointments .appointment-title {
+        .status-confirmada {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .status-cancelada {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .meeting-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn-confirm {
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .btn-cancel {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .btn-confirm:hover, .btn-cancel:hover {
+            filter: brightness(110%);
+        }
+
+        .meeting-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .meeting-type-icon {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        /* Loading state */
+        .loading {
+            color: #60a5fa;
             font-size: 1rem;
             font-weight: 500;
-            margin-bottom: 0.5rem;
         }
+        .calendar-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: flex-start;
+    }
 
-        .appointments .appointment-description {
-            color: #4b5563;
-        }
+    .calendar {
+      flex: 1;
+      margin-right: 2rem;
+    }
 
-        .documents .dropzone {
-            border: 2px dashed #e5e7eb;
-            border-radius: 0.5rem;
-            padding: 2rem;
-            text-align: center;
-            transition: all 0.2s;
-            margin-bottom: 1rem;
-        }
+    .time-slots {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
 
-        .documents .dropzone.dragover {
-            background-color: #f9fafb;
-            border-color: #2563eb;
-        }
+    .time-slot {
+      position: relative;
+    }
 
-        .documents .select-button {
-            background-color: #60a5fa;
-            color: white;
-            padding: 0.625rem 1.5rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s;
-            font-weight: 500;
-            border: none;
-            cursor: pointer;
-        }
+    .time-slot input[type="checkbox"] {
+      display: none;
+    }
 
-        .documents .select-button:hover {
-            background-color: #3b82f6;
-        }
-    </style>
+    .time-slot label {
+      display: block;
+      padding: 1rem;
+      background-color: #f3f4f6;
+      border-radius: 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .time-slot input[type="checkbox"]:checked + label {
+      background-color: #3b82f6;
+      color: white;
+    }
+  </style>
 </head>
 <body>
-    <nav>
-        <div class="container">
-            <div class="content">
-                <div class="logo">
-                    <img src="images/dextrategia_logo.png" alt="Logo">
-                    <span>Dashboard do Consultor</span>
-                </div>
-                <div class="user">
-                    <span id="consultant-name">João Silva</span>
-                    
-                </div>
+  <div class="header">
+    <div class="container">
+      <div class="profile-section">
+        <div class="profile-info">
+          <h1>Olá, <span id="consultant-name" class="loading">Carregando...</span></h1>
+          <div class="profile-details">
+            <div>
+              <span>Especialidade</span>
+              <p id="consultant-specialty" class="loading">Carregando...</p>
             </div>
+            <div>
+              <span>Valor/Hora</span>
+              <p id="consultant-rate" class="loading">Carregando...</p>
+            </div>
+          </div>
         </div>
-    </nav>
+        <button class="logout-btn" onclick="logout()">Sair</button>
+      </div>
+    </div>
+  </div>
 
-    <main>
-        <div class="card profile">
-            <h2 id="consultant-full-name">João Silva</h2>
-            <div class="grid">
-                <div>
-                    <span>Especialidade</span>
-                    <p id="consultant-specialty">Marketing Digital</p>
-                </div>
-                <div>
-                    <span>Valor/Hora</span>
-                    <p id="consultant-rate">R$ 100/hora</p>
-                </div>
-            </div>
+  <div class="container">
+    <div class="card">
+      <h2>Minha Disponibilidade</h2>
+      <div class="calendar-section">
+        <div class="calendar">
+          <div id="calendar"></div>
         </div>
-
-        <div class="card availability">
-            <h2>Disponibilidade</h2>
-            <div id="calendar" class="calendar"></div>
-            <div class="slots">
-                <div class="slot">
-                    <input type="checkbox" id="slot-09" name="time-slot" value="09:00">
-                    <label for="slot-09">09:00</label>
-                </div>
-                <div class="slot">
-                    <input type="checkbox" id="slot-10" name="time-slot" value="10:00">
-                    <label for="slot-10">10:00</label>
-                </div>
-                <div class="slot">
-                    <input type="checkbox" id="slot-11" name="time-slot" value="11:00">
-                    <label for="slot-11">11:00</label>
-                </div>
-                <div class="slot">
-                    <input type="checkbox" id="slot-14" name="time-slot" value="14:00">
-                    <label for="slot-14">14:00</label>
-                </div>
-                <div class="slot">
-                    <input type="checkbox" id="slot-15" name="time-slot" value="15:00">
-                    <label for="slot-15">15:00</label>
-                </div>
-                <div class="slot">
-                    <input type="checkbox" id="slot-16" name="time-slot" value="16:00">
-                    <label for="slot-16">16:00</label>
-                </div>
-            </div>
-            <div class="actions">
-                <button class="save-button">Salvar Disponibilidade</button>
-            </div>
+        <div class="time-slots">
+          <div class="time-slot">
+            <input type="checkbox" id="slot-08" name="time-slot" value="08:00">
+            <label for="slot-08">08:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-09" name="time-slot" value="09:00">
+            <label for="slot-09">09:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-10" name="time-slot" value="10:00">
+            <label for="slot-10">10:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-11" name="time-slot" value="11:00">
+            <label for="slot-11">11:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-12" name="time-slot" value="12:00">
+            <label for="slot-12">12:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-13" name="time-slot" value="13:00">
+            <label for="slot-13">13:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-14" name="time-slot" value="14:00">
+            <label for="slot-14">14:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-15" name="time-slot" value="15:00">
+            <label for="slot-15">15:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-16" name="time-slot" value="16:00">
+            <label for="slot-16">16:00</label>
+          </div>
+          <div class="time-slot">
+            <input type="checkbox" id="slot-17" name="time-slot" value="17:00">
+            <label for="slot-17">17:00</label>
+          </div>
         </div>
-
-        <div class="card appointments">
-            <h2>Meus Agendamentos</h2>
-            <div id="appointments-list">
-                <div class="appointment">
-                    <div class="appointment-header">
-                        <div>
-                            <h3 class="client-name">Empresa XYZ</h3>
-                            <p class="appointment-info">25/01/2025 - 14:00</p>
-                        </div>
-                        <span class="appointment-format format-online">Online</span>
-                    </div>
-                    <h4 class="appointment-title">Consultoria em Marketing Digital</h4>
-                    <p class="appointment-description">Análise da estratégia atual e sugestões de melhorias.</p>
-                </div>
-                <div class="appointment">
-                    <div class="appointment-header">
-                        <div>
-                            <h3 class="client-name">Startup ABC</h3>
-                            <p class="appointment-info">27/01/2025 - 16:00</p>  
-                        </div>
-                        <span class="appointment-format format-presential">Presencial</span>
-                    </div>
-                    <h4 class="appointment-title">Workshop de Mídias Sociais</h4>
-                    <p class="appointment-description">Treinamento para a equipe interna.</p>
-                </div>
-            </div>  
+      </div>
+      <button class="save-btn" onclick="saveAvailability()">Salvar Disponibilidade</button>
+    </div>
+    
+        <div class="card">
+          <h2>Minhas Reuniões</h2>
+          <div id="meetings-list">
+            <!-- As reuniões serão carregadas aqui -->
+          </div>
         </div>
-
-        <div class="card documents">
-            <h2>Documentos</h2>
-            <div id="dropzone" class="dropzone">
-                <p>Arraste arquivos aqui ou</p>
-                <button class="select-button" onclick="document.getElementById('file-input').click()">Selecionar Arquivos</button>
-                <input type="file" id="file-input" multiple hidden>
-            </div>
-            <div id="documents-list">
-                <!-- Lista de documentos será inserida aqui -->
-            </div>
-        </div>
-    </main>
-
-    <script>
+      </div>
+    
+      <script>
+        // Variáveis globais
+        let calendar;
+    
+        // Inicialização
         document.addEventListener('DOMContentLoaded', () => {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = '/frontend/login.html';
+          const token = localStorage.getItem('token');
+          if (!token) {
+            window.location.href = '/login.html';
+            return;
+          }
+    
+          // Inicializa o calendário
+          calendar = flatpickr("#calendar", {
+            inline: true,
+            mode: "single",
+            dateFormat: "Y-m-d",
+            minDate: "today",
+            onChange: function(selectedDates) {
+              if (selectedDates.length > 0) {
+                updateTimeSlots(selectedDates[0].toISOString().split('T')[0]);
+              }
+            }
+          });
+    
+          // Carrega dados iniciais
+          loadConsultantInfo();
+          loadAvailability();
+          loadMeetings();
+        });
+    
+        // Carrega informações do consultor
+        async function loadConsultantInfo() {
+          try {
+            const response = await fetch('http://localhost:3000/api/consultant/info', {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              }
+            });
+            
+            if (!response.ok) throw new Error('Falha ao carregar informações');
+            
+            const consultant = await response.json();
+            document.getElementById('consultant-name').textContent = consultant.user_id;
+            document.getElementById('consultant-specialty').textContent = consultant.name;
+            document.getElementById('consultant-rate').textContent = `R$ ${consultant.valor_hora}/hora`;
+    
+            // Remove a classe 'loading' após carregar as informações
+            document.querySelectorAll('.loading').forEach(el => el.classList.remove('loading'));
+          } catch (error) {
+            console.error('Erro ao carregar informações:', error);
+            alert('Erro ao carregar informações do consultor. Por favor, tente novamente.');
+          }
+        }
+                
+
+
+        // Carrega disponibilidade
+        async function loadAvailability() {
+            try {
+                const response = await fetch('http://localhost:3000/api/consultant/availability', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Falha ao carregar disponibilidade');
+                
+                const availability = await response.json();
+                const availableDates = availability.map(slot => slot.data_disponivel);
+                calendar.setDate(availableDates, true);
+                
+                if (availableDates.length > 0) {
+                    updateTimeSlots(availableDates[0]);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar disponibilidade:', error);
+                alert('Erro ao carregar disponibilidade. Por favor, tente novamente.');
+            }
+        }
+
+        // Atualiza slots de tempo
+        async function updateTimeSlots(selectedDate) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/consultant/availability/${selectedDate}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Falha ao carregar horários');
+                
+                const slots = await response.json();
+                
+                document.querySelectorAll('[name="time-slot"]').forEach(checkbox => {
+                    const time = checkbox.value;
+                    const isAvailable = slots.some(slot => slot.hora_disponivel === time && slot.disponivel);
+                    checkbox.checked = isAvailable;
+                });
+            } catch (error) {
+                console.error('Erro ao atualizar horários:', error);
+                alert('Erro ao atualizar slots de tempo. Por favor, tente novamente.');
+            }
+        }
+
+        // Verifica conflitos de horários
+        async function hasConflicts(date, slots) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/consultant/meetings?date=${date}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Falha ao verificar conflitos');
+
+                const meetings = await response.json();
+                
+                return slots.some(slot => 
+                    meetings.some(meeting => meeting.hora === slot && meeting.status !== 'cancelada')
+                );
+            } catch (error) {
+                console.error('Erro ao verificar conflitos:', error);
+                return false;
+            }
+        }
+
+        // Salva disponibilidade
+        async function saveAvailability() {
+            const selectedDate = calendar.selectedDates[0];
+            if (!selectedDate) {
+                alert('Por favor, selecione uma data');
+                return;
+            }
+            
+            const selectedSlots = Array.from(document.querySelectorAll('[name="time-slot"]:checked'))
+                .map(checkbox => checkbox.value);
+
+            // Verifica se há conflitos nos slots selecionados
+            if (await hasConflicts(selectedDate.toISOString().split('T')[0], selectedSlots)) {
+                alert('Alguns dos horários selecionados já estão ocupados por reuniões. Por favor, escolha outros horários.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/consultant/availability', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        date: selectedDate.toISOString().split('T')[0],
+                        times: selectedSlots
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Falha ao salvar disponibilidade');
+                
+                alert('Disponibilidade salva com sucesso!');
+                await loadAvailability();
+            } catch (error) {
+                console.error('Erro ao salvar disponibilidade:', error);
+                alert('Erro ao salvar disponibilidade. Por favor, tente novamente.');
+            }
+        }
+
+        // Carrega reuniões
+        async function loadMeetings() {
+    try {
+        const response = await fetch('http://localhost:3000/api/consultant/meetings', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Falha ao carregar reuniões');
+        }
+        
+        const meetings = await response.json();
+        console.log('Reuniões recebidas:', meetings); // Debug log
+        
+        const meetingsList = document.getElementById('meetings-list');
+        
+        if (!meetings || meetings.length === 0) {
+            meetingsList.innerHTML = '<p>Nenhuma reunião agendada.</p>';
+            return;
+        }
+
+        meetingsList.innerHTML = meetings.map(meeting => {
+            const data = new Date(meeting.data_consulta).toLocaleDateString('pt-BR');
+            
+            return `
+                <div class="meeting-item">
+                    <h3>Reunião com ${meeting.nome}</h3>
+                    <p><strong>Data:</strong> ${data}</p>
+                    <p><strong>Horário:</strong> ${meeting.hora_consulta}</p>
+                    <p><strong>Tipo de Serviço:</strong> ${meeting.tipo_servico}</p>
+                    <p><strong>Tipo de Reunião:</strong> ${meeting.tipo_reuniao}</p>
+                    <p><strong>Descrição:</strong> ${meeting.descricao || 'Não informada'}</p>
+                    <p><strong>Valor:</strong> R$ ${meeting.valor}</p>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Erro detalhado ao carregar reuniões:', error);
+        document.getElementById('meetings-list').innerHTML = 
+            `<p style="color: #ef4444;">Erro ao carregar reuniões: ${error.message}</p>`;
+    }
+}
+
+        // Confirma uma reunião
+        async function confirmMeeting(meetingId) {
+            if (!confirm('Tem certeza que deseja confirmar esta reunião?')) {
                 return;
             }
 
-            flatpickr("#calendar", {
-                inline: true,
-                mode: "multiple",
-                dateFormat: "Y-m-d",
-                onChange: function(selectedDates) {
-                    console.log('Datas selecionadas:', selectedDates);
-                }
-            });
-
-            const dropzone = document.getElementById('dropzone');
-            
-            dropzone.addEventListener('dragover', (event) => {
-                event.preventDefault();
-                dropzone.classList.add('dragover');
-            });
-
-            dropzone.addEventListener('dragleave', () => {
-                dropzone.classList.remove('dragover');
-            });
-
-            dropzone.addEventListener('drop', (event) => {
-                event.preventDefault();
-                dropzone.classList.remove('dragover');
-                const files = Array.from(event.dataTransfer.files);
-                handleFiles(files);
-            });
-
-            loadConsultantInfo();
-            loadAppointments();
-        });
-
-        async function loadConsultantInfo() {
             try {
-                const response = await fetch('http://localhost:3000/api/consultant/info', {
+                const response = await fetch(`http://localhost:3000/api/consultant/meetings/${meetingId}/confirm`, {
+                    method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 });
-                
-                if (!response.ok) {
-                    
-                }
-                
-                const consultant = await response.json();
-                document.getElementById('consultant-full-name').textContent = consultant.name;
-                document.getElementById('consultant-specialty').textContent = consultant.especialidade;
-                document.getElementById('consultant-rate').textContent = `R$ ${consultant.valor_hora}/hora`;
+
+                if (!response.ok) throw new Error('Falha ao confirmar reunião');
+
+                await loadMeetings();
+                alert('Reunião confirmada com sucesso!');
             } catch (error) {
-                console.error('Erro:', error);
-                
+                console.error('Erro ao confirmar reunião:', error);
+                alert('Erro ao confirmar reunião. Por favor, tente novamente.');
             }
         }
 
-        async function loadAppointments() {
+        // Cancela uma reunião
+        async function cancelMeeting(meetingId) {
+            if (!confirm('Tem certeza que deseja cancelar esta reunião?')) {
+                return;
+            }
+
             try {
-                const response = await fetch('http://localhost:3000/api/consultant/appointments', {
+                const response = await fetch(`http://localhost:3000/api/consultant/meetings/${meetingId}/cancel`, {
+                    method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 });
-                
-                if (!response.ok) {
-                    
-                }
-                
-                const appointments = await response.json();
-                const appointmentsList = document.getElementById('appointments-list');
-                appointmentsList.innerHTML = appointments.map(appointment => `
-                    <div class="appointment">
-                        <div class="appointment-header">
-                            <div>
-                                <h3 class="client-name">${appointment.client_name}</h3>
-                                <p class="appointment-info">
-                                    ${new Date(appointment.date).toLocaleDateString()} - ${appointment.time}
-                                </p>
-                            </div>
-                            <span class="appointment-format ${appointment.format === 'Online' ? 'format-online' : 'format-presential'}">
-                                ${appointment.format}
-                            </span>
-                        </div>
-                        <h4 class="appointment-title">Título: ${appointment.title}</h4>
-                        <p class="appointment-description">Descrição: ${appointment.description}</p>
-                    </div>
-                `).join('');
+
+                if (!response.ok) throw new Error('Falha ao cancelar reunião');
+
+                await loadMeetings();
+                alert('Reunião cancelada com sucesso!');
             } catch (error) {
-                console.error('Erro:', error);
-                
+                console.error('Erro ao cancelar reunião:', error);
+                alert('Erro ao cancelar reunião. Por favor, tente novamente.');
             }
         }
 
-        function handleFiles(files) {
-            console.log('Arquivos para upload:', files);
-        }
-
-        function logout() {
-            localStorage.removeItem('token');
-            window.location.href = '/frontend/login.html';
+        // Faz logout
+        async function logout() {
+            try {
+                await fetch('http://localhost:3000/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+            } catch (error) {
+                console.error('Erro ao fazer logout:', error);
+            } finally {
+                localStorage.removeItem('token');
+                window.location.href = '/index.html';
+            }
         }
     </script>
 </body>
@@ -2593,7 +3362,7 @@ Se precisar, descreva funções, classes ou módulos.
 
                 <!-- Register Form -->
                 <div id="register-form" class="form-box" style="display: none;">
-                    <h2>Registrar</h2>
+                    <h2>Register</h2>
                     <form>
                         <div class="input-group">
                             <label for="register-name">Nome</label>
@@ -2934,124 +3703,144 @@ Se precisar, descreva funções, classes ou módulos.
 
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Recupera os dados do localStorage
     const bookingDetails = JSON.parse(localStorage.getItem('bookingDetails') || '{}');
     const paymentMethods = document.querySelectorAll('.payment-method');
     const mainForm = document.getElementById('payment-form');
-
-    // Inicialmente esconder o formulário principal
-    if (mainForm) mainForm.classList.add('hidden');
+    const paymentForms = document.querySelectorAll('.payment-form');
+ 
+    console.log('Dados recuperados:', bookingDetails); // Debug
     
-    // Esconder todos os formulários de pagamento
-    document.querySelectorAll('.payment-form').forEach(form => {
+    // Atualiza os campos de resumo
+    const servicoElement = document.getElementById('service-name');
+    const valorElement = document.getElementById('total-value');
+    
+    if (servicoElement && bookingDetails.tipo_servico) {
+        servicoElement.textContent = bookingDetails.tipo_servico;
+    }
+    
+    if (valorElement && bookingDetails.valor) {
+        valorElement.textContent = `€${bookingDetails.valor}`;
+    }
+    
+    // Esconder todos os formulários de pagamento inicialmente
+    paymentForms.forEach(form => {
         form.style.display = 'none';
     });
-    if (bookingDetails.servico) {
-        document.getElementById('service-name').textContent = bookingDetails.servico;
-    }
     
-    if (bookingDetails.valorTotal) {
-        document.getElementById('total-value').textContent = `€${bookingDetails.valorTotal.toFixed(2).replace('.', ',')}`;
-    }
- 
-    if (bookingDetails.nomeCliente) {
-        document.getElementById('card-name').value = bookingDetails.nomeCliente;
-    }
-    
-    if (bookingDetails.emailCliente) {
-        document.getElementById('paypal-email').value = bookingDetails.emailCliente;
-        document.getElementById('card-name').value = bookingDetails.nomeCliente;
-    }
- 
-    
-    // Event listeners para métodos de pagamento
+    // Gestão de seleção de método de pagamento
     paymentMethods.forEach(method => {
         method.addEventListener('click', () => {
+            // Remove seleção anterior
             paymentMethods.forEach(m => {
                 m.classList.remove('active');
                 const selectElement = m.querySelector('.payment-method-select');
                 if (selectElement) selectElement.innerHTML = '';
             });
-    
-            document.querySelectorAll('.payment-form').forEach(form => {
-                form.style.display = 'none';
-            });
-    
+ 
+            // Esconde todos os formulários
+            paymentForms.forEach(form => form.style.display = 'none');
+ 
+            // Ativa o método selecionado
             method.classList.add('active');
             const selectElement = method.querySelector('.payment-method-select');
             if (selectElement) selectElement.innerHTML = '✓';
-    
-            const selectedMethod = method.dataset.method;
-            const selectedForm = document.getElementById(`${selectedMethod}-form`);
-            if (selectedForm) {
-                selectedForm.style.display = 'block';
-                mainForm.classList.remove('hidden');
+ 
+            // Mostra o formulário correspondente
+            const methodType = method.dataset.method;
+            const form = document.getElementById(`${methodType}-form`);
+            if (form) {
+                form.style.display = 'block';
             }
         });
     });
-
-    // Set MBWAY como default
+ 
+    // Seleciona MBWay por padrão
     const mbwayMethod = document.querySelector('[data-method="mbway"]');
     if (mbwayMethod) {
-        mbwayMethod.classList.add('active');
-        const selectElement = mbwayMethod.querySelector('.payment-method-select');
-        if (selectElement) selectElement.innerHTML = '✓';
-        const mbwayForm = document.getElementById('mbway-form');
-        if (mbwayForm) {
-            mbwayForm.style.display = 'block';
-            mainForm.classList.remove('hidden');
-        }
+        mbwayMethod.click();
     }
-
+ 
+    // Gerenciamento do formulário de pagamento
     if (mainForm) {
         mainForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const activeMethodElement = document.querySelector('.payment-method.active');
-            if (!activeMethodElement) return;
-            
-            const activeMethod = activeMethodElement.dataset.method;
-            let isValid = true;
-        
-            if (activeMethod === 'mbway') {
-                const mbwayPhone = document.getElementById('mbway-phone');
-                if (mbwayPhone && !mbwayPhone.value.trim()) {
-                    mbwayPhone.classList.add('error');
-                    isValid = false;
-                }
-                document.querySelectorAll('#card-form input, #paypal-form input').forEach(input => {
-                    input.classList.remove('error');
-                });
-            } else if (activeMethod === 'card') {
-                const cardInputs = document.querySelectorAll('#card-form input');
-                cardInputs.forEach(input => {
-                    if (!input.value.trim()) {
-                        input.classList.add('error');
-                        isValid = false;
-                    }
-                });
-                document.querySelectorAll('#mbway-form input, #paypal-form input').forEach(input => {
-                    input.classList.remove('error');
-                });
-            } else if (activeMethod === 'paypal') {
-                const paypalEmail = document.getElementById('paypal-email');
-                if (paypalEmail && !paypalEmail.value.trim()) {
-                    paypalEmail.classList.add('error');
-                    isValid = false;
-                }
-                document.querySelectorAll('#card-form input, #mbway-form input').forEach(input => {
-                    input.classList.remove('error');
-                });
+ 
+            const activeMethod = document.querySelector('.payment-method.active');
+            if (!activeMethod) {
+                alert('Por favor, selecione um método de pagamento.');
+                return;
             }
-        
+ 
+            const methodType = activeMethod.dataset.method;
+            let isValid = validatePaymentForm(methodType);
+ 
             if (isValid) {
-                window.location.href = 'confirmacao.html';
-            } else {
-                alert('Por favor, preencha todos os campos corretamente.');
+                try {
+                    const paymentData = {
+                        nome: bookingDetails.nome,
+                        email: bookingDetails.email,
+                        servico: bookingDetails.tipo_servico,
+                        valor_total: bookingDetails.valor,
+                        forma_pagamento: methodType,
+                        consultor: bookingDetails.consultor,
+                        data_consulta: bookingDetails.data_consulta,
+                        hora_consulta: bookingDetails.hora_consulta,
+                        agendamento_id: localStorage.getItem('agendamentoId')
+                    };
+ 
+                    console.log('Enviando dados:', paymentData); // Debug
+ 
+                    const response = await fetch('http://localhost:3000/api/payments', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(paymentData)
+                    });
+ 
+                    if (response.ok) {
+                        localStorage.setItem('confirmationDetails', JSON.stringify(paymentData));
+                        window.location.href = 'confirmacao.html';
+                    } else {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Erro ao processar pagamento');
+                    }
+                } catch (error) {
+                    console.error('Erro:', error);
+                    alert('Erro ao processar pagamento. Por favor, tente novamente.');
+                }
             }
         });
     }
-
-    // Input masks
+ 
+    // Função de validação de formulário
+    function validatePaymentForm(methodType) {
+        let isValid = true;
+        const requiredFields = {
+            mbway: ['mbway-phone'],
+            cartao: ['card-number', 'card-name', 'card-expiry', 'card-cvv'],
+            paypal: ['paypal-email']
+        };
+ 
+        (requiredFields[methodType] || []).forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field && !field.value.trim()) {
+                field.classList.add('error');
+                isValid = false;
+            } else if (field) {
+                field.classList.remove('error');
+            }
+        });
+ 
+        if (!isValid) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
+        }
+ 
+        return isValid;
+    }
+ 
+    // Máscaras de input
     function maskInput(input, mask) {
         if (!input) return;
         
@@ -3072,11 +3861,13 @@ document.addEventListener('DOMContentLoaded', () => {
             this.value = maskedValue;
         });
     }
-
+ 
+    // Aplicar máscaras
     maskInput(document.getElementById('mbway-phone'), 'XXX XXX XXX');
     maskInput(document.getElementById('card-number'), 'XXXX XXXX XXXX XXXX');
     maskInput(document.getElementById('card-expiry'), 'XX/XX');
-});
+    maskInput(document.getElementById('card-cvv'), 'XXX');
+ });
 
 
 
@@ -3357,7 +4148,7 @@ Se precisar, descreva funções, classes ou módulos.
             </div>
             <div class="nav-links">
                 <span>Bem-vindo, Usuário!</span>
-                <a href="http://localhost:3000/frontend/index.html" id="logout">Sair</a>
+                <button class="logout-btn" onclick="logout()">Sair</button>
             </div>
         </nav>
     </div>
@@ -3433,13 +4224,15 @@ Se precisar, descreva funções, classes ou módulos.
             </div>
         </section>
 
-        <footer>
-            <a href="#consulta" class="cta-button">Agende sua Consultoria</a>
-        </footer>
+       
     </div>
 
     <script>
-       
+        document.getElementById('logout').addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/logout';
             
             // Add CSRF token if needed
             const csrfToken = document.querySelector('meta[name="csrf-token"]');
@@ -3464,6 +4257,22 @@ Se precisar, descreva funções, classes ou módulos.
                 });
             });
         });
+
+        async function logout() {
+    try {
+        await fetch('http://localhost:3000/api/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+    } finally {
+        localStorage.removeItem('token');
+        window.location.href = '/index.html';
+    }
+}
     </script>
 </body>
 </html>
